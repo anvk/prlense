@@ -43,3 +43,11 @@ test("the claude-cli engine defaults to the newest Opus at high effort", () => {
   assert.deepEqual(normalizeEngineConfig({}, "test"), { kind: "claude-cli", model: "claude-opus-5-5", effort: "high" })
   assert.throws(() => normalizeEngineConfig({ effort: "huge" }, "test"), /one of low, medium, high, xhigh, max/)
 })
+
+test("an openai-compat engine on a local server needs no key", () => {
+  const local = normalizeEngineConfig({ kind: "openai-compat", baseUrl: "http://localhost:11434/v1", model: "qwen2.5-coder:32b" }, "test")
+  assert.deepEqual(local, { kind: "openai-compat", baseUrl: "http://localhost:11434/v1", model: "qwen2.5-coder:32b", apiKeyEnv: undefined, maxSteps: undefined })
+  const user = normalizeUserConfig({ engine: { kind: "openai-compat", baseUrl: "https://api.openai.com/v1", model: "gpt-4.1", apiKeyEnv: "OPENAI_API_KEY" } }, "u.json")
+  assert.equal(resolveEngineConfig(user, {}).model, "gpt-4.1")
+  assert.equal(resolveEngineConfig(user, { model: "gpt-4.1-mini" }).model, "gpt-4.1-mini")
+})

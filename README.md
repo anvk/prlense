@@ -7,8 +7,9 @@ It explains. It does not review, judge, or comment on other reviewers.
 
 ## Quick start
 
-1. Make sure you have git, Node 22 or newer, the GitHub CLI logged in (`gh auth status`), and Claude Code logged in
-   (`claude auth status`).
+1. Make sure you have git, Node 22 or newer, the GitHub CLI logged in (`gh auth status`), and a model to run: Claude
+   Code logged in (`claude auth status`) works with no setup, or point prlense at any other model (see
+   [Engines](#engines)).
 
 2. Install `prlense`:
 
@@ -27,8 +28,8 @@ A typical run takes a few minutes, and prints the turns and time it took at the 
 
 ## Install
 
-You need git, Node 22 or newer, the GitHub CLI logged in (`gh auth status`), and Claude Code logged in
-(`claude auth status`). With `curl`:
+You need git, Node 22 or newer, the GitHub CLI logged in (`gh auth status`), and a model: Claude Code logged in, or an
+API key (or a local server) for any engine in [Engines](#engines). With `curl`:
 
 ```sh
 sh -c "$(curl -fsSL https://raw.githubusercontent.com/anvk/prlense/main/tools/install.sh)"
@@ -73,13 +74,13 @@ prlense explain https://github.com/acme/shop/pull/482     # or 482, or #482
 prlense explain <target>     a PR number or URL; or a report JSON path or link, which is opened (default command)
   -C, --repo <path>          local checkout of the target repo (default: current directory)
   --remote <name>            which git remote owns the PR
-  --context <glob...>        extra repo docs to hand the model, on top of the CLAUDE.md files
-  --with-rules               also load .claude/rules/*.md near the changed files
+  --context <glob...>        extra repo docs to hand the model, on top of the AGENTS.md and CLAUDE.md files
+  --with-rules               also load agent rule files (.claude/rules, .cursor/rules) near the changed files
   --skip <glob...>           treat these paths as generated too
   --out <dir>                reports directory (default ~/.prlense/reports)
   --no-open                  write the report without opening a browser
-  --engine <name>            engine preset or kind (default claude-cli)
-  --model <id>               model id for the engine (default claude-opus-5-5)
+  --engine <name>            engine preset from ~/.prlense/config.json, or claude-cli (default: the config's engine)
+  --model <id>               model id for the engine, overriding the config
   --keep-worktree            leave the temporary worktree in place
   --timestamp                keep every run instead of overwriting pr-<n>.html
   --yes                      run even when the PR has more than 300 traceable files
@@ -99,8 +100,10 @@ the remote) or `--remote <name>`. If the URL's repo matches none of the remotes,
 
 1. Reads the PR with `gh` and fetches its head into a temporary git worktree. Your working tree is never touched.
 2. Lists the changed files, marking generated files and tests so the model does not trace them.
-3. Collects the repo's own instructions: the CLAUDE.md files above the changed code, plus anything from `--context`.
-4. Runs the model in the worktree with read-only tools and a fixed prompt, asking for JSON matching a schema.
+3. Collects the repo's own instructions: the AGENTS.md and CLAUDE.md files above the changed code, plus anything from
+   `--context`.
+4. Runs the model in the worktree with read-only tools and a fixed prompt, asking for JSON matching a schema. The prompt,
+   the schema and the page are the same whichever engine and model run it.
 5. Validates the JSON, adds GitHub links, and writes one self-contained HTML page with the JSON next to it.
 
 Every claim is meant to come from something the model read or ran. What it could not confirm carries an
@@ -145,31 +148,57 @@ There is no per-repo config. Anything that varies by run is a flag (`--context`,
 `--skip` adds to the built-in generated-file list: `**/*_gen.go`, `**/*.pb.go`, `**/openapi.yaml`, lockfiles and
 snapshots. Rule files are off by default because they are mostly about writing code and add tokens on every turn.
 
-Per-person defaults go in the optional `~/.prlense/config.json`. Keys never go in this file, only the name of the
-environment variable that holds one:
+Per-person defaults go in the optional `~/.prlense/config.json`: which engine to use, and named presets to switch
+between with `--engine`. Keys never go in this file, only the name of the environment variable that holds one:
 
 ```json
 {
   "reportsDir": "~/.prlense/reports",
   "contextMaxBytes": 150000,
   "frontendMatch": ["ui/**", "web/**", "frontend/**", "client/**"],
-  "engine": { "kind": "claude-cli", "model": "claude-opus-5-5", "effort": "high" },
+  "engine": { "kind": "openai-compat", "baseUrl": "https://api.openai.com/v1", "model": "gpt-4.1", "apiKeyEnv": "OPENAI_API_KEY" },
   "engines": {
-    "grok": { "kind": "openai-compat", "baseUrl": "https://api.x.ai/v1", "model": "grok-4", "apiKeyEnv": "XAI_API_KEY" }
+    "local": { "kind": "openai-compat", "baseUrl": "http://localhost:11434/v1", "model": "qwen2.5-coder:32b" },
+    "claude": { "kind": "claude-cli", "model": "claude-opus-5-5", "effort": "high" }
   }
 }
 ```
 
-`--engine grok` then selects that preset. `contextMaxBytes` caps the repo documentation handed to the model.
+With this file, `prlense explain 482` uses OpenAI, `--engine local` a local Ollama model, and `--engine claude` Claude
+Code. `--model` swaps the model for one run. Without the file, prlense uses Claude Code. `contextMaxBytes` caps the repo
+documentation handed to the model.
 
 ## Engines
 
-- **claude-cli** (default) runs `claude -p` in the worktree with your Claude Code login, so there is no API key. It
-  allows only Read, Glob, Grep and Bash, switches off the repo's own settings and MCP servers, and asks for structured
-  JSON. A hook denies any shell command not on a read-only list (`git`/`gh` reads, `rg`, `grep`, `cat` and similar).
-  Nothing is written to the repo or to GitHub.
-- **openai-compat** is a placeholder for Grok, OpenAI, Ollama and other OpenAI-shaped APIs. The config and the engine
-  seam exist; the tool loop does not yet, so `prlense doctor --engine <preset>` reports it as not ready.
+An engine is how prlense runs a model. The prompt, the report schema and the page never change with it, so any model
+that can call tools can explain a PR. Check a setup with `prlense doctor --engine <name>`.
+
+- **openai-compat** works with any API that speaks OpenAI's chat completions format, which covers most providers and
+  local servers. The model asks for tools and prlense runs them itself, inside the worktree and read-only: read a file,
+  list files, search with `git grep`, and run a command such as `git diff` or `gh pr view`. Paths cannot leave the
+  worktree, and commands go through the same read-only list as below. The model's final answer is checked against the
+  schema; when it does not fit, the problem is sent back and a corrected answer is asked for (twice at most).
+  `maxSteps` (default 80) caps the tool rounds before the model has to answer.
+- **claude-cli** runs `claude -p` in the worktree with your Claude Code login, so there is no API key. It allows only
+  Read, Glob, Grep and Bash, switches off the repo's own settings and MCP servers, and asks for structured JSON. A hook
+  denies any shell command not on a read-only list (`git`/`gh` reads, `rg`, `grep`, `cat` and similar).
+
+Either way, nothing is written to the repo or to GitHub.
+
+Presets for common providers (`"kind": "openai-compat"`; put your key in the named environment variable):
+
+| Provider | `baseUrl` | `apiKeyEnv` |
+| --- | --- | --- |
+| OpenAI | `https://api.openai.com/v1` | `OPENAI_API_KEY` |
+| Anthropic API | `https://api.anthropic.com/v1` | `ANTHROPIC_API_KEY` |
+| Google Gemini | `https://generativelanguage.googleapis.com/v1beta/openai` | `GEMINI_API_KEY` |
+| xAI Grok | `https://api.x.ai/v1` | `XAI_API_KEY` |
+| OpenRouter (many models) | `https://openrouter.ai/api/v1` | `OPENROUTER_API_KEY` |
+| Ollama (local) | `http://localhost:11434/v1` | none |
+| LM Studio (local) | `http://localhost:1234/v1` | none |
+
+Set `"model"` to a model id from that provider. Report quality follows the model: it needs reliable tool calling and a
+long context, so small local models produce thinner reports than large hosted ones.
 
 ## Troubleshooting
 
@@ -177,6 +206,8 @@ environment variable that holds one:
 |---|---|
 | `gh is not logged in` | `gh auth login` |
 | `Engine claude-cli is not ready: not logged in` | `claude login` |
+| `environment variable … is not set` | export the key the engine's `apiKeyEnv` names, or pick another `--engine` |
+| `… answered 401` / `404` | check the preset's `baseUrl`, `model` and key with `prlense doctor --engine <name>` |
 | `a bare PR number is ambiguous` | pass the PR URL or `--remote <name>` |
 | `The PR belongs to X, but this checkout only has remotes for ...` | run inside a checkout of that repo, or pass `-C` |
 | `Explain failed (schema_failed)` | the raw answer is saved as `pr-<n>.raw.txt`; rerun, or share the transcript |

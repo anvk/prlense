@@ -1,15 +1,16 @@
 import fs from "node:fs"
 import os from "node:os"
 import path from "node:path"
+import { CLAUDE_DEFAULT_EFFORT, CLAUDE_DEFAULT_MODEL, CLAUDE_EFFORTS, type ClaudeEffort } from "../engine/claudeCli.js"
 import { DEFAULT_FRONTEND_MATCH } from "../report/types.js"
 import { errorMessage } from "./util.js"
 
-export const EFFORTS = ["low", "medium", "high", "xhigh", "max"] as const
-export type Effort = (typeof EFFORTS)[number]
-
+// The engines prlense can drive. `claude-cli` runs a local Claude Code session;
+// `openai-compat` talks to any chat-completions API (OpenAI, Anthropic, Gemini, Grok,
+// OpenRouter, Ollama, ...) and runs the read-only tools itself.
 export type EngineConfig =
-  | { kind: "claude-cli"; model?: string; effort?: Effort }
-  | { kind: "openai-compat"; baseUrl: string; model: string; apiKeyEnv: string; maxSteps?: number }
+  | { kind: "claude-cli"; model?: string; effort?: ClaudeEffort }
+  | { kind: "openai-compat"; baseUrl: string; model: string; apiKeyEnv?: string; maxSteps?: number }
 
 // User-level defaults, read from ~/.prlense/config.json. Never holds keys, only env var names.
 export interface UserConfig {
@@ -31,13 +32,12 @@ export const DEFAULT_SKIP_GENERATED = [
   "**/*.snap",
 ]
 
-export const DEFAULT_MODEL = "claude-opus-5-5"
-export const DEFAULT_EFFORT: Effort = "high"
-
+// What runs when ~/.prlense/config.json names no engine: a local Claude Code login, which
+// needs no API key. Any other engine is one config entry away (see the README).
 export const DEFAULT_ENGINE: EngineConfig = {
   kind: "claude-cli",
-  model: DEFAULT_MODEL,
-  effort: DEFAULT_EFFORT,
+  model: CLAUDE_DEFAULT_MODEL,
+  effort: CLAUDE_DEFAULT_EFFORT,
 }
 
 export const DEFAULT_CONTEXT_MAX_BYTES = 150_000
@@ -107,21 +107,22 @@ export function normalizeEngineConfig(raw: unknown, where: string): EngineConfig
   const kind = optString(raw, "kind", where)
   if (kind === "claude-cli" || kind === undefined) {
     const effort = optString(raw, "effort", where)
-    if (effort && !(EFFORTS as readonly string[]).includes(effort)) {
-      throw new Error(`${where}: "effort" must be one of ${EFFORTS.join(", ")}`)
+    if (effort && !(CLAUDE_EFFORTS as readonly string[]).includes(effort)) {
+      throw new Error(`${where}: "effort" must be one of ${CLAUDE_EFFORTS.join(", ")}`)
     }
     return {
       kind: "claude-cli",
-      model: optString(raw, "model", where) ?? DEFAULT_MODEL,
-      effort: (effort as Effort | undefined) ?? DEFAULT_EFFORT,
+      model: optString(raw, "model", where) ?? CLAUDE_DEFAULT_MODEL,
+      effort: (effort as ClaudeEffort | undefined) ?? CLAUDE_DEFAULT_EFFORT,
     }
   }
   if (kind === "openai-compat") {
     const baseUrl = optString(raw, "baseUrl", where)
     const model = optString(raw, "model", where)
+    // A local server (Ollama, LM Studio) needs no key, so apiKeyEnv is optional.
     const apiKeyEnv = optString(raw, "apiKeyEnv", where)
-    if (!baseUrl || !model || !apiKeyEnv) {
-      throw new Error(`${where}: openai-compat needs "baseUrl", "model" and "apiKeyEnv"`)
+    if (!baseUrl || !model) {
+      throw new Error(`${where}: openai-compat needs "baseUrl" and "model" (and "apiKeyEnv" unless the endpoint is local)`)
     }
     return { kind, baseUrl, model, apiKeyEnv, maxSteps: optNumber(raw, "maxSteps", where) }
   }
@@ -175,7 +176,7 @@ export function resolveEngineConfig(user: UserConfig, flags: EngineFlags): Engin
     if (preset) cfg = preset
     else if (flags.engine === "claude-cli") cfg = { ...DEFAULT_ENGINE }
     else if (flags.engine === "openai-compat") {
-      throw new Error(`--engine openai-compat needs a preset in ~/.prlense/config.json (baseUrl, model, apiKeyEnv)`)
+      throw new Error(`--engine openai-compat needs a preset in ~/.prlense/config.json (baseUrl, model, and apiKeyEnv unless local)`)
     } else {
       const known = Object.keys(user.engines)
       throw new Error(

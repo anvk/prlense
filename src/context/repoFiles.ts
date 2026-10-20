@@ -12,7 +12,7 @@ function readIfFile(p: string): string | undefined {
   return undefined
 }
 
-// Resolve one level of "@path" include lines the way Claude Code does for CLAUDE.md.
+// Resolve one level of "@path" include lines, the convention instruction files use to pull in others.
 function resolveIncludes(content: string, baseDir: string): string {
   return content
     .split("\n")
@@ -50,9 +50,16 @@ function walk(dir: string, out: string[] = []): string[] {
   return out
 }
 
-// Reads the checkout's own instruction files: CLAUDE.md files in the root and in every
-// directory above a changed file, optionally their .claude/rules, and any extra docs
-// passed with --context.
+// The instruction files agents read, in the order they are handed over. AGENTS.md is the
+// tool-neutral convention; CLAUDE.md is Claude Code's. Many repos keep one as a symlink to
+// the other, which is read once.
+const INSTRUCTION_FILES = ["AGENTS.md", "CLAUDE.md"]
+// Rule folders, loaded with --with-rules.
+const RULE_DIRS = [path.join(".claude", "rules"), path.join(".cursor", "rules")]
+
+// Reads the checkout's own instruction files: AGENTS.md and CLAUDE.md in the root and in
+// every directory above a changed file, optionally the agent rule folders there, and any
+// extra docs passed with --context.
 export class RepoFilesContextProvider implements ContextProvider {
   readonly name = "repo-files"
 
@@ -61,12 +68,17 @@ export class RepoFilesContextProvider implements ContextProvider {
     const docs: ContextDoc[] = []
     const changedPaths = req.changedFiles.map((f) => f.path)
     const dirs = ancestorDirs(changedPaths)
+    const seen = new Set<string>()
 
     for (const dir of dirs) {
-      {
-        const rel = dir ? `${dir}/CLAUDE.md` : "CLAUDE.md"
-        const content = readIfFile(path.join(root, rel))
+      for (const name of INSTRUCTION_FILES) {
+        const rel = dir ? `${dir}/${name}` : name
+        const full = path.join(root, rel)
+        const content = readIfFile(full)
         if (content === undefined) continue
+        const real = fs.realpathSync(full)
+        if (seen.has(real)) continue
+        seen.add(real)
         docs.push({
           id: `repo:${rel}`,
           kind: "repo-instructions",
@@ -80,18 +92,20 @@ export class RepoFilesContextProvider implements ContextProvider {
 
     if (req.options.includeRules) {
       for (const dir of dirs) {
-        const rulesDir = path.join(root, dir, ".claude", "rules")
-        let names: string[] = []
-        try {
-          names = fs.readdirSync(rulesDir).filter((n) => n.endsWith(".md")).sort()
-        } catch {
-          continue
-        }
-        for (const n of names) {
-          const rel = path.posix.join(dir, ".claude", "rules", n)
-          const content = readIfFile(path.join(rulesDir, n))
-          if (content === undefined) continue
-          docs.push({ id: `repo:${rel}`, kind: "rule", title: rel, source: rel, content, priority: 2 })
+        for (const ruleDir of RULE_DIRS) {
+          const rulesDir = path.join(root, dir, ruleDir)
+          let names: string[] = []
+          try {
+            names = fs.readdirSync(rulesDir).filter((n) => n.endsWith(".md") || n.endsWith(".mdc")).sort()
+          } catch {
+            continue
+          }
+          for (const n of names) {
+            const rel = path.posix.join(dir, ruleDir.split(path.sep).join("/"), n)
+            const content = readIfFile(path.join(rulesDir, n))
+            if (content === undefined) continue
+            docs.push({ id: `repo:${rel}`, kind: "rule", title: rel, source: rel, content, priority: 2 })
+          }
         }
       }
     }
