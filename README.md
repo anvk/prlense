@@ -1,9 +1,14 @@
 # prlense
 
-Explain a GitHub pull request as a six-step HTML walkthrough: why it was made, what changed, which data models and
-contracts changed, which functions changed, the detailed changes with links into the PR, and notes for the reviewer.
+**Understand a pull request before you approve it.** More and more pull requests are vibe-coded: written by a teammate
+with an AI assistant, or opened by a coding agent on its own. They can be large and hard to follow, and the description
+may not match what the code does. `prlense` lets a human step back in: it checks the work against the code itself and
+explains the reason behind the change, so you can tell whether it makes sense instead of scrolling through thousands of
+lines of diff. It works with any model that can call tools.
 
-It explains. It does not review, judge, or comment on other reviewers.
+Each report is one HTML page in six steps: why the change was made, what changed, which data models and contracts
+changed, which functions changed, the detailed changes with links into the PR, and notes for the reviewer. It explains.
+It does not review, judge, or comment on other reviewers.
 
 ## Quick start
 

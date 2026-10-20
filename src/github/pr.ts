@@ -27,14 +27,34 @@ export interface TicketRef {
   url?: string
 }
 
-export function extractTicketRefs(body: string): TicketRef[] {
+const KEY = /[A-Z][A-Z0-9]{1,9}-\d{1,6}/
+const TRACKER_URL = /https?:\/\/[^\s)\]>]+?\/(?:browse|issue)\/([A-Z][A-Z0-9]{1,9}-\d{1,6})(?:[/?#][^\s)\]>]*)?/g
+const GITHUB_ISSUE_URL = /https?:\/\/github\.com\/([\w.-]+\/[\w.-]+)\/issues\/(\d+)/g
+const CLOSING_REF = /\b(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?)\s+((?:[\w.-]+\/[\w.-]+)?#(\d+))/gi
+
+// The tickets a PR points at, without guessing:
+//  - links to a tracker issue (Jira's /browse/ABC-123, Linear's /issue/ABC-123, GitHub issues)
+//  - GitHub issues named with a closing keyword ("Fixes #12", "Closes owner/repo#3")
+//  - a bare key such as ABC-123 only when the branch name or the start of the title carries
+//    it, which is how a PR is tied to a ticket. On its own the shape also matches UTF-8 or
+//    SHA-256.
+export function extractTicketRefs(pr: Pick<PrMeta, "body" | "title" | "headRefName" | "slug">): TicketRef[] {
   const out = new Map<string, TicketRef>()
-  for (const m of body.matchAll(/https?:\/\/[\w.-]+\.atlassian\.net\/browse\/([A-Z][A-Z0-9]+-\d+)/g)) {
-    out.set(m[1], { key: m[1], url: m[0] })
+  const add = (key: string, url?: string) => {
+    if (!out.has(key) || (url && !out.get(key)!.url)) out.set(key, { key, url })
   }
-  for (const m of body.matchAll(/\b([A-Z][A-Z0-9]{1,9}-\d{1,6})\b/g)) {
-    if (!out.has(m[1])) out.set(m[1], { key: m[1] })
+  // A link that ends a sentence keeps its full stop otherwise.
+  for (const m of pr.body.matchAll(TRACKER_URL)) add(m[1], m[0].replace(/[.,;:!?]+$/, ""))
+  for (const m of pr.body.matchAll(GITHUB_ISSUE_URL)) add(`${m[1]}#${m[2]}`, m[0])
+  for (const m of pr.body.matchAll(CLOSING_REF)) {
+    const repo = m[1].includes("/") ? m[1].split("#")[0] : pr.slug
+    add(m[1].includes("/") ? m[1] : `#${m[2]}`, `https://github.com/${repo}/issues/${m[2]}`)
   }
+  const declared = new Set<string>()
+  for (const m of pr.headRefName.matchAll(new RegExp(KEY.source, "gi"))) declared.add(m[0].toUpperCase())
+  const titleKey = new RegExp(`^\\[?(${KEY.source})\\]?[:\\s]`).exec(pr.title.trim())
+  if (titleKey) declared.add(titleKey[1])
+  for (const key of declared) add(key)
   return [...out.values()]
 }
 

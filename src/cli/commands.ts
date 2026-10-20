@@ -11,7 +11,12 @@ import type { Report } from "../report/types.js"
 import { findStalePrlenseWorktrees, removeWorktree } from "../github/worktree.js"
 
 export function runRenderCommand(jsonPath: string, opts: { out?: string; open: boolean }): void {
-  const raw = JSON.parse(fs.readFileSync(jsonPath, "utf8")) as unknown
+  let raw: unknown
+  try {
+    raw = JSON.parse(fs.readFileSync(jsonPath, "utf8"))
+  } catch (error) {
+    throw new Error(`Cannot open ${jsonPath}: it is not valid JSON (${error instanceof Error ? error.message : String(error)}).`)
+  }
   const problem = reportProblem(raw)
   if (problem) throw new Error(`Cannot open ${jsonPath}: ${problem}.`)
   const htmlPath = opts.out ? path.resolve(opts.out) : jsonPath.replace(/\.json$/, "") + ".html"
