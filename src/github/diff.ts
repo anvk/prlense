@@ -14,24 +14,12 @@ export interface ChangedFile {
   area?: string
 }
 
-const TEST_GLOBS = [
-  "**/*_test.go",
-  "**/*.test.ts",
-  "**/*.test.tsx",
-  "**/*.spec.ts",
-  "**/*.spec.tsx",
-  "**/__tests__/**",
-  "**/tests/**",
-  "**/testutil/**",
-  "**/testdata/**",
-]
-
 export function isGeneratedFile(filePath: string, options: RunOptions): boolean {
   return matchesAnyGlob(filePath, options.skipGenerated)
 }
 
-export function isTestFile(filePath: string): boolean {
-  return matchesAnyGlob(filePath, TEST_GLOBS)
+export function isTestFile(filePath: string, options: Pick<RunOptions, "testMatch">): boolean {
+  return matchesAnyGlob(filePath, options.testMatch)
 }
 
 // The first path segment, which gives "go" and "ui" in a typical repo.
@@ -81,7 +69,7 @@ export function listChangedFiles(wt: PrWorktree, options: RunOptions): ChangedFi
       additions: c.additions,
       deletions: c.deletions,
       generated: isGeneratedFile(filePath, options),
-      test: isTestFile(filePath),
+      test: isTestFile(filePath, options),
       area: assignArea(filePath),
     })
   }

@@ -51,3 +51,11 @@ test("an openai-compat engine on a local server needs no key", () => {
   assert.equal(resolveEngineConfig(user, {}).model, "gpt-4.1")
   assert.equal(resolveEngineConfig(user, { model: "gpt-4.1-mini" }).model, "gpt-4.1-mini")
 })
+
+test("generatedMatch and testMatch in the config extend the built-in lists", () => {
+  const user = normalizeUserConfig({ generatedMatch: ["**/*.gen.ts"], testMatch: ["**/qa/**"] }, "u.json")
+  const run = buildRunOptions(user, { skip: ["**/fixtures/**"] })
+  assert.ok(run.skipGenerated.includes("**/*_gen.go") && run.skipGenerated.includes("**/*.gen.ts") && run.skipGenerated.includes("**/fixtures/**"))
+  assert.ok(run.testMatch.includes("**/*_test.go") && run.testMatch.includes("**/qa/**"))
+  assert.throws(() => normalizeUserConfig({ testMatch: "qa" }, "u.json"), /"testMatch" must be an array of strings/)
+})

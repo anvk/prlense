@@ -1,8 +1,8 @@
 import fs from "node:fs"
 import os from "node:os"
 import path from "node:path"
+import { git as runGit } from "../core/git.js"
 import { run, tryRun } from "../core/process.js"
-import { warn, info } from "../cli/log.js"
 import type { PrMeta } from "./pr.js"
 import type { Remote } from "./remotes.js"
 
@@ -13,11 +13,18 @@ export interface PrWorktree {
   baseRef: string // e.g. newOrigin/main
 }
 
+// Where progress notes go. The CLI passes its logger; without one they are dropped.
+export interface WorktreeLog {
+  warn(message: string): void
+  info(message: string): void
+}
+
 export interface WorktreeArgs {
   repoRoot: string
   remote: Remote
   pr: PrMeta
   keep?: boolean
+  log?: WorktreeLog
 }
 
 const WORKTREE_PREFIX = "prlense-"
@@ -45,7 +52,7 @@ function worktreeDirName(pr: PrMeta): string {
 // its base is then the base branch as it was just before the merge (the merge commit's
 // first parent).
 export function resolveBaseSha(repoRoot: string, headSha: string, baseRef: string, mergeCommitSha: string | null): string {
-  const git = (gitArgs: string[]) => run("git", gitArgs, { cwd: repoRoot }).stdout
+  const git = (gitArgs: string[]) => runGit(repoRoot, gitArgs).stdout
   const forkPoint = git(["merge-base", headSha, baseRef])
   if (forkPoint !== headSha || !mergeCommitSha) return forkPoint
   const parents = tryRun("git", ["rev-list", "--parents", "-n", "1", mergeCommitSha], { cwd: repoRoot })
@@ -56,8 +63,9 @@ export function resolveBaseSha(repoRoot: string, headSha: string, baseRef: strin
 
 export async function withPrWorktree<T>(args: WorktreeArgs, fn: (wt: PrWorktree) => Promise<T>): Promise<T> {
   const { repoRoot, remote, pr } = args
+  const { warn, info } = args.log ?? { warn: () => undefined, info: () => undefined }
   const tmpRef = `refs/prlense/pr-${pr.number}`
-  const git = (gitArgs: string[]) => run("git", gitArgs, { cwd: repoRoot })
+  const git = (gitArgs: string[]) => runGit(repoRoot, gitArgs)
 
   git(["worktree", "prune"])
 

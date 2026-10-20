@@ -6,12 +6,12 @@ import { runRenderCommand } from "./commands.js"
 import { buildRunOptions, readUserConfig, resolveEngineConfig, type EngineFlags } from "../core/config.js"
 import { collectContext, createProviders } from "../context/collect.js"
 import { listChangedFiles, type ChangedFile } from "../github/diff.js"
-import { createEngine } from "../engine/select.js"
+import { createEngine } from "../engine/registry.js"
 import { fetchReport } from "../github/fetchReport.js"
 import * as log from "./log.js"
 import { resolveReportsDir, showReport, writeReportFiles } from "./output.js"
 import { extractTicketRefs, resolvePr, type PrMeta } from "../github/pr.js"
-import { commandExists, tryRun } from "../core/process.js"
+import { requireToolchain } from "./checks.js"
 import { buildSystemPrompt } from "../prompt/system.js"
 import { buildUserPrompt } from "../prompt/user.js"
 import { findRepoRoot, listRemotes, pickRemote } from "../github/remotes.js"
@@ -36,14 +36,6 @@ export interface ExplainOptions extends EngineFlags {
   timestamp?: boolean
   yes?: boolean
   version: string
-  cliScriptPath: string
-}
-
-function preflight(): void {
-  if (!commandExists("git")) throw new Error("git is not installed.")
-  if (!commandExists("gh")) throw new Error("gh (GitHub CLI) is not installed: https://cli.github.com")
-  const auth = tryRun("gh", ["auth", "status"])
-  if (auth.status !== 0) throw new Error(`gh is not logged in. Run: gh auth login\n${auth.stderr}`)
 }
 
 function buildPrHeader(pr: PrMeta, wt: PrWorktree): Report["pr"] {
@@ -85,12 +77,12 @@ export async function runExplainCommand(input: string, opts: ExplainOptions): Pr
     return
   }
 
-  preflight()
+  requireToolchain()
   const repoRoot = findRepoRoot(opts.repo)
   const { config: user, source: userSource } = readUserConfig()
   if (userSource) log.verbose(`user config ${userSource}`)
   const engineConfig = resolveEngineConfig(user, opts)
-  const engine = createEngine(engineConfig, opts.cliScriptPath)
+  const engine = createEngine(engineConfig)
 
   const doc = engine.doctor()
   if (!doc.ok) throw new Error(`Engine ${engine.name} is not ready:\n  - ${doc.details.join("\n  - ")}`)
@@ -101,6 +93,7 @@ export async function runExplainCommand(input: string, opts: ExplainOptions): Pr
   const remote = pickRemote(remotes, {
     remoteFlag: opts.remote,
     urlSlug: ref.owner && ref.repo ? `${ref.owner}/${ref.repo}` : undefined,
+    urlHost: ref.host,
   })
 
   log.step(`Reading PR #${ref.number} from ${remote.slug} (remote ${remote.name})`)
@@ -110,7 +103,7 @@ export async function runExplainCommand(input: string, opts: ExplainOptions): Pr
   const reportsDir = resolveReportsDir(user, opts.out)
 
   log.step("Checking out the PR head into a temporary worktree")
-  const report = await withPrWorktree({ repoRoot, remote, pr, keep: opts.keepWorktree }, async (wt) => {
+  const report = await withPrWorktree({ repoRoot, remote, pr, keep: opts.keepWorktree, log }, async (wt) => {
     const changedFiles = listChangedFiles(wt, runOptions)
     if (changedFiles.length === 0) {
       throw new Error(

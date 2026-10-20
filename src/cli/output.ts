@@ -1,21 +1,17 @@
 import fs from "node:fs"
-import os from "node:os"
 import path from "node:path"
 import { spawn } from "node:child_process"
 import type { UserConfig } from "../core/config.js"
 import * as log from "./log.js"
+import { defaultReportsDir, expandHome } from "../core/paths.js"
 import { renderReportHtml } from "../render/html.js"
 import { readViewerScript } from "../render/viewerScript.js"
 import type { Report } from "../report/types.js"
 
-export function expandHome(p: string): string {
-  return p.startsWith("~/") ? path.join(os.homedir(), p.slice(2)) : p
-}
-
 export function resolveReportsDir(user: UserConfig, outFlag?: string): string {
   if (outFlag) return path.resolve(expandHome(outFlag))
   if (user.reportsDir) return path.resolve(expandHome(user.reportsDir))
-  return path.join(os.homedir(), ".prlense", "reports")
+  return defaultReportsDir()
 }
 
 export function reportBasename(report: Report, timestamp: boolean): string {

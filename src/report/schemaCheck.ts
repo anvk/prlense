@@ -11,11 +11,10 @@ export interface Schema {
   items?: Schema
 }
 
+import { isRecord } from "../core/guards.js"
+
 const MAX_ERRORS = 25
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value)
-}
 
 function typeMatches(type: NonNullable<Schema["type"]>, value: unknown): boolean {
   switch (type) {
