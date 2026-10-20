@@ -4,6 +4,8 @@ import { renderBody, renderReportHtml } from "./html.js"
 import { decorateLinks } from "../report/links.js"
 import { isReport, reportProblem } from "../report/compat.js"
 import type { Report } from "../report/types.js"
+import { AGENT_OUTPUT_SCHEMA } from "../report/schema.js"
+import { checkSchema, type Schema } from "../report/schemaCheck.js"
 
 const report: Report = {
   schemaVersion: 4,
@@ -115,4 +117,9 @@ test("a report from another version says which way to go", () => {
   assert.match(reportProblem({ ...shell, schemaVersion: 3 }) ?? "", /older prlense.*prlense explain/)
   assert.match(reportProblem({ ...shell, schemaVersion: 99 }) ?? "", /newer prlense.*prlense update/)
   assert.equal(reportProblem({ ...shell, schemaVersion: 4 }), null)
+})
+
+test("the sample report's model output fits the schema the model is given", () => {
+  const { why, what, model, functions, details, review, coverage } = report
+  assert.deepEqual(checkSchema(AGENT_OUTPUT_SCHEMA as Schema, JSON.parse(JSON.stringify({ why, what, model, functions, details, review, coverage }))), [])
 })
