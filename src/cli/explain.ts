@@ -12,7 +12,7 @@ import * as log from "./log.js"
 import { resolveReportsDir, showReport, writeReportFiles } from "./output.js"
 import { extractTicketRefs, resolvePr, type PrMeta } from "../github/pr.js"
 import { commandExists, tryRun } from "../core/process.js"
-import { buildSystemPrompt, CLAUDE_CODE_TOOLS } from "../prompt/system.js"
+import { buildSystemPrompt } from "../prompt/system.js"
 import { buildUserPrompt } from "../prompt/user.js"
 import { findRepoRoot, listRemotes, pickRemote } from "../github/remotes.js"
 import { decorateLinks } from "../report/links.js"
@@ -21,6 +21,7 @@ import { REPORT_SCHEMA_VERSION, type Report } from "../report/types.js"
 import { applySemanticChecks, parseAgentOutput } from "../report/validate.js"
 import { resolveExplainTarget } from "../github/target.js"
 import { withPrWorktree, type PrWorktree } from "../github/worktree.js"
+import { errorMessage } from "../core/util.js"
 
 export interface ExplainOptions extends EngineFlags {
   repo?: string
@@ -146,7 +147,7 @@ export async function runExplainCommand(input: string, opts: ExplainOptions): Pr
     )
     log.info(`${context.docs.length} context docs, ${Math.round(context.totalBytes / 1024)} KB${context.truncated.length ? `, truncated: ${context.truncated.join(", ")}` : ""}`)
 
-    const systemPrompt = buildSystemPrompt(CLAUDE_CODE_TOOLS)
+    const systemPrompt = buildSystemPrompt(engine.tools)
     const userPrompt = buildUserPrompt({ pr, worktree: wt, changedFiles, ticketRefs, context })
 
     const transcriptDir = path.join(reportsDir, pr.slug.replace("/", "-"))
@@ -163,6 +164,14 @@ export async function runExplainCommand(input: string, opts: ExplainOptions): Pr
       outputSchema: AGENT_OUTPUT_SCHEMA,
       verbose: Boolean(opts.verbose),
       transcriptPath,
+      checkOutput: (output) => {
+        try {
+          parseAgentOutput(output)
+          return null
+        } catch (error) {
+          return errorMessage(error)
+        }
+      },
       onProgress: (line) => {
         toolCalls++
         log.verbose(line)

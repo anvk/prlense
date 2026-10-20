@@ -5,7 +5,7 @@ import type { PrMeta, TicketRef } from "../github/pr.js"
 export type ContextDocKind = "repo-instructions" | "rule" | "doc" | "ticket" | "other"
 
 export interface ContextDoc {
-  id: string // stable, e.g. "repo:go/CLAUDE.md"
+  id: string // stable, e.g. "repo:go/AGENTS.md"
   kind: ContextDocKind
   title: string
   source: string // path or URL, shown to the model and in the report's Sources list

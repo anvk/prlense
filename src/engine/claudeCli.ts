@@ -3,12 +3,25 @@ import fs from "node:fs"
 import os from "node:os"
 import path from "node:path"
 import { tryRun } from "../core/process.js"
-import type { Effort } from "../core/config.js"
-import type { DoctorResult, Engine, EngineInput, EngineResult } from "./types.js"
+import type { DoctorResult, Engine, EngineInput, EngineResult, ToolNames } from "./types.js"
+
+// Everything specific to Claude Code lives in this file: its defaults, its tool names, and
+// how a session is started and read back.
+export const CLAUDE_EFFORTS = ["low", "medium", "high", "xhigh", "max"] as const
+export type ClaudeEffort = (typeof CLAUDE_EFFORTS)[number]
+export const CLAUDE_DEFAULT_MODEL = "claude-opus-5-5"
+export const CLAUDE_DEFAULT_EFFORT: ClaudeEffort = "high"
+
+const CLAUDE_CODE_TOOLS: ToolNames = {
+  read: "Read",
+  search: "Grep",
+  diff: "`git diff BASE_SHA HEAD_SHA -- <path>`",
+  showBase: "`git show BASE_SHA:<path>`",
+}
 
 export interface ClaudeCliOptions {
   model: string
-  effort: Effort
+  effort: ClaudeEffort
   // Absolute path to the prlense entry script, used as the bash-guard hook command.
   cliScriptPath: string
 }
@@ -47,6 +60,7 @@ function summarizeToolUse(block: { name?: string; input?: Record<string, unknown
 export class ClaudeCliEngine implements Engine {
   readonly name = "claude-cli"
   readonly model: string
+  readonly tools = CLAUDE_CODE_TOOLS
 
   constructor(private readonly opts: ClaudeCliOptions) {
     this.model = opts.model

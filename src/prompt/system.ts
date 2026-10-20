@@ -1,16 +1,4 @@
-export interface ToolNames {
-  read: string
-  search: string
-  diff: string // how to see a change for a path
-  showBase: string // how to see the base version of a path
-}
-
-export const CLAUDE_CODE_TOOLS: ToolNames = {
-  read: "Read",
-  search: "Grep",
-  diff: "`git diff BASE_SHA HEAD_SHA -- <path>`",
-  showBase: "`git show BASE_SHA:<path>`",
-}
+import type { ToolNames } from "../engine/types.js"
 
 export function buildSystemPrompt(tools: ToolNames): string {
   return `You explain what a pull request changes and why, for an engineer who has not read it. You do not review, judge, approve, or comment on other reviewers. Explain only.
