@@ -1,0 +1,30 @@
+{
+  "name": "prlense",
+  "version": "0.1.0",
+  "description": "Explain a GitHub pull request as a six-step HTML walkthrough",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "prlense": "./dist/bin/prlense.js"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json && node tools/build-viewer.mjs && node tools/build-bin-mode.mjs",
+    "start": "node ./dist/bin/prlense.js",
+    "dev": "tsx ./src/bin/prlense.ts",
+    "test": "node --import tsx --test \"src/**/*.test.ts\"",
+    "prepare": "npm run build"
+  },
+  "dependencies": {
+    "commander": "^12.1.0",
+    "picocolors": "^1.1.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.10",
+    "tsx": "^4.19.3",
+    "typescript": "^5.8.2",
+    "esbuild": "^0.24.0"
+  }
+}
