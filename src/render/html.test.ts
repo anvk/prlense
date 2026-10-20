@@ -56,7 +56,7 @@ const report: Report = {
   lenses: { frontendMatch: ["ui/**"] },
 }
 
-test("renderReportHtml produces a self-contained five-step page with escaped content", () => {
+test("renderReportHtml produces a self-contained six-step page with escaped content", () => {
   const html = renderReportHtml(decorateLinks(JSON.parse(JSON.stringify(report)) as Report))
   assert.equal((html.match(/<section class="step"/g) ?? []).length, 6)
   assert.equal(/<script\s+src=/.test(html), false)

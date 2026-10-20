@@ -39,6 +39,17 @@ export function run(
   return { stdout: normalizeOutput(result.stdout), stderr: normalizeOutput(result.stderr) }
 }
 
+// Like run() but returns stdout exactly as written, for output that must not lose its edges
+// (NUL-separated paths, where a name may start or end with a space).
+export function runRaw(command: string, args: string[], options: SpawnSyncOptionsWithBufferEncoding = {}): string {
+  const result = spawnSync(command, args, { encoding: "utf8", stdio: "pipe", maxBuffer: 64 * 1024 * 1024, ...options })
+  if (result.status !== 0) {
+    const details = normalizeOutput(result.stderr) || normalizeOutput(result.stdout) || "Command failed with no output"
+    throw new Error(`${formatCommand(command, args)}\n${details}`)
+  }
+  return typeof result.stdout === "string" ? result.stdout : (result.stdout?.toString("utf8") ?? "")
+}
+
 // Like run() but never throws; callers inspect status.
 export function tryRun(
   command: string,

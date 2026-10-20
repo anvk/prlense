@@ -26,18 +26,12 @@ export async function collectContext(
     }
     const room = maxBytes - total
     if (room > 2000) {
-      docs.push({ ...d, content: d.content.slice(0, room) + "\n[... truncated to fit the context budget]" })
+      // The budget is in bytes, so the cut is too; a character split at the edge is dropped.
+      const cut = Buffer.from(d.content, "utf8").subarray(0, room).toString("utf8").replace(/\uFFFD$/, "")
+      docs.push({ ...d, content: cut + "\n[... truncated to fit the context budget]" })
       total = maxBytes
     }
     truncated.push(d.source)
   }
   return { docs, truncated, totalBytes: total }
-}
-
-export function renderContextBlock(bundle: ContextBundle): string {
-  if (bundle.docs.length === 0) return "<context>\n(no repository instruction files found)\n</context>"
-  const parts = bundle.docs.map(
-    (d) => `<doc source="${d.source}" kind="${d.kind}">\n${d.content.trim()}\n</doc>`,
-  )
-  return `<context>\n${parts.join("\n\n")}\n</context>`
 }

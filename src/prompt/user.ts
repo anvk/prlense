@@ -1,5 +1,4 @@
 import type { ContextBundle } from "../context/provider.js"
-import { renderContextBlock } from "../context/collect.js"
 import { formatInventory, type ChangedFile } from "../github/diff.js"
 import type { PrMeta, TicketRef } from "../github/pr.js"
 import type { PrWorktree } from "../github/worktree.js"
@@ -10,6 +9,20 @@ export interface UserPromptInput {
   changedFiles: ChangedFile[]
   ticketRefs: TicketRef[]
   context: ContextBundle
+}
+
+// Text from the PR or the repo goes inside tags; a closing tag in it would end the block
+// early and let the rest read as part of the task.
+export function escapeTags(text: string): string {
+  return text.replace(/<\/(pr|body|tickets|inventory|context|doc)>/gi, "<\\/$1>")
+}
+
+function renderContextBlock(bundle: ContextBundle): string {
+  if (bundle.docs.length === 0) return "<context>\n(no repository instruction files found)\n</context>"
+  const parts = bundle.docs.map(
+    (d) => `<doc source="${d.source.replace(/"/g, "&quot;")}" kind="${d.kind}">\n${escapeTags(d.content.trim())}\n</doc>`,
+  )
+  return `<context>\n${parts.join("\n\n")}\n</context>`
 }
 
 export function buildUserPrompt(input: UserPromptInput): string {
@@ -23,7 +36,7 @@ export function buildUserPrompt(input: UserPromptInput): string {
 number: ${pr.number}
 repo: ${pr.slug}
 url: ${pr.url}
-title: ${pr.title}
+title: ${escapeTags(pr.title)}
 author: ${pr.author}
 state: ${pr.state}${pr.isDraft ? " (draft)" : ""}
 base: ${pr.baseRefName}  head: ${pr.headRefName}${pr.headRepoSlug ? `  (from fork ${pr.headRepoSlug})` : ""}
@@ -31,7 +44,7 @@ files: ${pr.changedFiles}  +${pr.additions}/-${pr.deletions}
 BASE_SHA: ${worktree.baseSha}
 HEAD_SHA: ${worktree.headSha}
 <body>
-${pr.body.trim() || "(empty)"}
+${escapeTags(pr.body.trim()) || "(empty)"}
 </body>
 </pr>
 

@@ -55,24 +55,6 @@ function buildPrHeader(pr: PrMeta, wt: PrWorktree): Report["pr"] {
   }
 }
 
-function emptyDiffReport(pr: PrMeta, wt: PrWorktree, version: string, engine: string, model: string, frontendMatch: string[]): Report {
-  return {
-    schemaVersion: REPORT_SCHEMA_VERSION,
-    generatedAt: new Date().toISOString(),
-    tool: { name: "prlense", version, engine, model },
-    pr: buildPrHeader(pr, wt),
-    why: { paragraphs: ["This PR has no file changes between its base and head, so there is nothing to explain."], references: [] },
-    what: { lead: "No files changed.", sections: [] },
-    model: { summary: "No changes.", changes: [] },
-    functions: { groups: [] },
-    details: { changes: [] },
-    review: { risks: [], questions: [], glossary: [] },
-    coverage: { filesTraced: [], filesSkippedGenerated: [], filesSkippedTests: [], filesUntraced: [] },
-    sources: [],
-    lenses: { frontendMatch },
-  }
-}
-
 // A very large PR takes long enough to be worth a moment's pause, during which Ctrl-C
 // stops the run (and the worktree's signal handler cleans up).
 async function confirmLarge(files: ChangedFile[], yes: boolean | undefined): Promise<void> {
@@ -131,15 +113,16 @@ export async function runExplainCommand(input: string, opts: ExplainOptions): Pr
   const report = await withPrWorktree({ repoRoot, remote, pr, keep: opts.keepWorktree }, async (wt) => {
     const changedFiles = listChangedFiles(wt, runOptions)
     if (changedFiles.length === 0) {
-      log.warn("The PR has no file changes; writing an empty report.")
-      return emptyDiffReport(pr, wt, opts.version, engine.name, engine.model, runOptions.frontendMatch)
+      throw new Error(
+        `PR #${pr.number} has no file changes between its base (${wt.baseSha.slice(0, 7)}) and head (${wt.headSha.slice(0, 7)}), so there is nothing to explain.`,
+      )
     }
     const traceable = changedFiles.filter((f) => !f.generated && !f.test)
     log.info(`${changedFiles.length} changed files, ${traceable.length} to trace (rest are generated or tests)`)
     await confirmLarge(changedFiles, opts.yes)
 
     log.step("Collecting repository context")
-    const ticketRefs = extractTicketRefs(pr.body)
+    const ticketRefs = extractTicketRefs(pr)
     const context = await collectContext(
       createProviders(),
       { repoRoot, worktreePath: wt.path, pr, changedFiles, ticketRefs, options: runOptions },
