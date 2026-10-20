@@ -56,12 +56,13 @@ export interface PrMeta {
   changedFiles: number
   createdAt: string
   mergedAt: string | null
+  mergeCommitSha: string | null
 }
 
 const GH_FIELDS = [
   "number", "url", "title", "body", "author", "state", "isDraft", "baseRefName", "headRefName",
   "headRefOid", "headRepository", "headRepositoryOwner", "additions", "deletions", "changedFiles",
-  "createdAt", "mergedAt",
+  "createdAt", "mergedAt", "mergeCommit",
 ]
 
 export function resolvePr(remote: Remote, ref: PrRef): PrMeta {
@@ -89,5 +90,6 @@ export function resolvePr(remote: Remote, ref: PrRef): PrMeta {
     changedFiles: raw.changedFiles as number,
     createdAt: raw.createdAt as string,
     mergedAt: (raw.mergedAt as string | null) ?? null,
+    mergeCommitSha: (raw.mergeCommit as { oid?: string } | null)?.oid ?? null,
   }
 }
