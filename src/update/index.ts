@@ -58,9 +58,8 @@ export function probeRemote(info: InstallPaths): string | null {
   return /^[0-9a-f]{40}$/.test(sha) ? sha : null
 }
 
-// Whether the package's dependencies changed between `from` and HEAD. The package sits
-// in a subfolder of the checkout, so the diff is run from there: run from the git root,
-// the bare file names would name files that do not exist and the diff would be empty.
+// Whether the package's dependencies changed between `from` and HEAD. The diff runs from
+// the package root, so the bare file names resolve wherever the package sits.
 export function npmInstallNeeded(info: Pick<InstallPaths, "packageRoot">, from: string): boolean {
   const changed = tryRun("git", ["diff", "--name-only", from, "HEAD", "--", "package-lock.json", "package.json"], {
     cwd: info.packageRoot,
@@ -161,14 +160,17 @@ export function applyUpdate(info: InstallPaths): UpdateOutcome {
     }
 
     if (npmInstallNeeded(info, from)) {
-      const installed = tryRun("npm", ["install", "--silent"], {
+      // `npm ci` installs exactly what the lockfile says and never rewrites it. `npm install`
+      // could, and a rewritten lockfile leaves the checkout dirty, which stops every later
+      // update.
+      const installed = tryRun("npm", ["ci", "--silent"], {
         cwd: info.packageRoot,
         timeout: BUILD_TIMEOUT_MS,
       })
       if (installed.status !== 0) {
         rollback(info, from)
         writeState({ failedSha: target })
-        return { status: "failed", reason: "npm install failed; rolled back" }
+        return { status: "failed", reason: "npm ci failed; rolled back" }
       }
     }
 
