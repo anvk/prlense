@@ -39,6 +39,21 @@ function worktreeDirName(pr: PrMeta): string {
   return `${WORKTREE_PREFIX}${pr.slug.replace("/", "-")}-pr${pr.number}-`
 }
 
+// The commit the PR's changes are measured from. For an open PR, or one merged by squash
+// or rebase, that is where its branch left the base. A PR merged with a merge commit is
+// already part of the base, so that answer would be the head itself and the diff empty;
+// its base is then the base branch as it was just before the merge (the merge commit's
+// first parent).
+export function resolveBaseSha(repoRoot: string, headSha: string, baseRef: string, mergeCommitSha: string | null): string {
+  const git = (gitArgs: string[]) => run("git", gitArgs, { cwd: repoRoot }).stdout
+  const forkPoint = git(["merge-base", headSha, baseRef])
+  if (forkPoint !== headSha || !mergeCommitSha) return forkPoint
+  const parents = tryRun("git", ["rev-list", "--parents", "-n", "1", mergeCommitSha], { cwd: repoRoot })
+  const [, firstParent, secondParent] = parents.stdout.split(" ")
+  if (parents.status !== 0 || !firstParent || !secondParent) return forkPoint
+  return git(["merge-base", headSha, firstParent])
+}
+
 export async function withPrWorktree<T>(args: WorktreeArgs, fn: (wt: PrWorktree) => Promise<T>): Promise<T> {
   const { repoRoot, remote, pr } = args
   const tmpRef = `refs/prlense/pr-${pr.number}`
@@ -63,7 +78,7 @@ export async function withPrWorktree<T>(args: WorktreeArgs, fn: (wt: PrWorktree)
   if (pr.headRefOid && headSha !== pr.headRefOid) {
     warn(`PR head moved while fetching (GitHub says ${pr.headRefOid.slice(0, 10)}, fetched ${headSha.slice(0, 10)}). Using the fetched commit.`)
   }
-  const baseSha = git(["merge-base", headSha, baseRef]).stdout
+  const baseSha = resolveBaseSha(repoRoot, headSha, baseRef, pr.mergeCommitSha)
 
   // mkdtemp reserves a unique name; git worktree add wants the directory absent, so remove it first.
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), worktreeDirName(pr)))
