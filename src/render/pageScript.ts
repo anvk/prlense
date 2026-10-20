@@ -1,4 +1,4 @@
-export const WIZARD_JS = `
+export const PAGE_SCRIPT = `
 (function(){
   var steps=[],tabs=[],prev=null,next=null,lensButtons=[];
   var current=0;

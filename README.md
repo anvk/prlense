@@ -98,6 +98,8 @@ prlense doctor                check git, gh, the repo, the config file and the e
 Reports land in `~/.prlense/reports/<owner>-<repo>/pr-<n>.html` and `pr-<n>.json`, with a
 `pr-<n>.transcript.jsonl` of the raw model events for debugging.
 
+GitHub Enterprise works the same way: a PR URL on your company's host, and a checkout whose remote points there.
+
 A bare PR number is ambiguous in a checkout with more than one GitHub remote: pass the PR URL (its owner/repo picks
 the remote) or `--remote <name>`. If the URL's repo matches none of the remotes, prlense stops rather than guess.
 
@@ -150,8 +152,11 @@ again; one from a newer version needs `prlense update`. Both say so when you try
 ## Configuration
 
 There is no per-repo config. Anything that varies by run is a flag (`--context`, `--with-rules`, `--skip`, above).
-`--skip` adds to the built-in generated-file list: `**/*_gen.go`, `**/*.pb.go`, `**/openapi.yaml`, lockfiles and
-snapshots. Rule files are off by default because they are mostly about writing code and add tokens on every turn.
+`--skip` adds to the built-in generated-file list: `*_gen.go`, `*.pb.go`, `*.generated.*`, `openapi.yaml`, `vendor/`,
+minified files, snapshots and lockfiles (npm, yarn, pnpm, Go, Cargo, Poetry, Bundler, Composer). Test files are found by
+name and folder for Go, JavaScript and TypeScript, Python, Ruby and Java (`*_test.go`, `*.test.*`, `*.spec.*`,
+`test_*.py`, `*_spec.rb`, `tests/`, `spec/`, `src/test/` and similar). Rule files are off by default because they are
+mostly about writing code and add tokens on every turn.
 
 Per-person defaults go in the optional `~/.prlense/config.json`: which engine to use, and named presets to switch
 between with `--engine`. Keys never go in this file, only the name of the environment variable that holds one:
@@ -161,6 +166,8 @@ between with `--engine`. Keys never go in this file, only the name of the enviro
   "reportsDir": "~/.prlense/reports",
   "contextMaxBytes": 150000,
   "frontendMatch": ["ui/**", "web/**", "frontend/**", "client/**"],
+  "generatedMatch": ["**/*.gen.ts"],
+  "testMatch": ["**/qa/**"],
   "engine": { "kind": "openai-compat", "baseUrl": "https://api.openai.com/v1", "model": "gpt-4.1", "apiKeyEnv": "OPENAI_API_KEY" },
   "engines": {
     "local": { "kind": "openai-compat", "baseUrl": "http://localhost:11434/v1", "model": "qwen2.5-coder:32b" },
@@ -171,7 +178,8 @@ between with `--engine`. Keys never go in this file, only the name of the enviro
 
 With this file, `prlense explain 482` uses OpenAI, `--engine local` a local Ollama model, and `--engine claude` Claude
 Code. `--model` swaps the model for one run. Without the file, prlense uses Claude Code. `contextMaxBytes` caps the repo
-documentation handed to the model.
+documentation handed to the model. `generatedMatch` and `testMatch` add your own patterns to the built-in generated
+and test lists.
 
 ## Engines
 

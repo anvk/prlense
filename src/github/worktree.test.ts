@@ -47,7 +47,7 @@ const pr = (headSha: string): PrMeta => ({
 
 test("withPrWorktree checks out the PR head, computes the merge base, and cleans up even when fn throws", async () => {
   const { clone, headSha } = makeRepos()
-  const remote = { name: "origin", url: "", slug: "o/r" }
+  const remote = { name: "origin", url: "", slug: "o/r", host: "github.com" }
   let seenPath = ""
   await assert.rejects(
     withPrWorktree({ repoRoot: clone, remote, pr: pr(headSha) }, async (wt) => {
@@ -66,7 +66,7 @@ test("withPrWorktree checks out the PR head, computes the merge base, and cleans
 
 test("withPrWorktree keeps the worktree when asked", async () => {
   const { clone, headSha } = makeRepos()
-  const remote = { name: "origin", url: "", slug: "o/r" }
+  const remote = { name: "origin", url: "", slug: "o/r", host: "github.com" }
   const kept = await withPrWorktree({ repoRoot: clone, remote, pr: pr(headSha), keep: true }, async (wt) => wt.path)
   assert.equal(fs.existsSync(kept), true)
   assert.equal(findStalePrlenseWorktrees(clone).length, 1)
@@ -75,7 +75,7 @@ test("withPrWorktree keeps the worktree when asked", async () => {
 
 test("a PR merged with a merge commit is measured from the base as it was before the merge", async () => {
   const { clone, headSha, baseSha, mergeSha } = makeRepos({ mergeIntoMain: true })
-  const remote = { name: "origin", url: "", slug: "o/r" }
+  const remote = { name: "origin", url: "", slug: "o/r", host: "github.com" }
   const merged: PrMeta = { ...pr(headSha), state: "MERGED", mergedAt: "2026-10-20T00:00:00Z", mergeCommitSha: mergeSha! }
   await withPrWorktree({ repoRoot: clone, remote, pr: merged }, async (wt) => {
     assert.equal(wt.headSha, headSha)

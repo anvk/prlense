@@ -10,7 +10,6 @@ import { runExplainCommand, type ExplainOptions } from "../cli/explain.js"
 import { describeVersion, packageVersion, resolveInstall } from "../update/install.js"
 import { maybeAutoUpdate } from "../update/index.js"
 import { runUpdateCommand } from "../update/update.js"
-import { isOfflineInvocation } from "../github/target.js"
 import { errorMessage } from "../core/util.js"
 import { cleanupAllWorktrees } from "../github/worktree.js"
 
@@ -56,7 +55,7 @@ program
   .showHelpAfterError("(add --help for additional information)")
 
 // Commander hands options over under their flag names, which already match ExplainOptions.
-type ExplainFlags = Omit<ExplainOptions, "version" | "cliScriptPath">
+type ExplainFlags = Omit<ExplainOptions, "version">
 
 program
   .command("explain", { isDefault: true })
@@ -76,7 +75,7 @@ program
   .option("--yes", "Run even when the PR is very large")
   .option("--verbose", "Print one line per tool call while the model works")
   .action((target: string, flags: ExplainFlags) =>
-    runExplainCommand(target, { ...flags, version: describeInstalledVersion(), cliScriptPath: thisFile }),
+    runExplainCommand(target, { ...flags, version: describeInstalledVersion() }),
   )
 
 program
@@ -105,7 +104,7 @@ program
   .option("-C, --repo <path>", "Local checkout of the target repo")
   .option("--engine <name>", "Engine preset or kind to check")
   .option("--model <id>", "Model id for the engine")
-  .action((opts: { repo?: string; engine?: string; model?: string }) => runDoctorCommand({ ...opts, cliScriptPath: thisFile }))
+  .action((opts: { repo?: string; engine?: string; model?: string }) => runDoctorCommand(opts))
 
 program
   .command("bash-guard", { hidden: true })
@@ -113,7 +112,8 @@ program
   .action(() => runBashGuardCommand())
 
 // Before commander, so a run always generates with the newest report format and an update
-// can re-exec the command rather than run it on stale code.
-if (!isOfflineInvocation(process.argv)) maybeAutoUpdate(process.argv)
+// can re-exec the command rather than run it on stale code. Whether this run updates at all
+// (not for render, doctor, help, or opening a report file) is decided in update/install.ts.
+maybeAutoUpdate(process.argv)
 
 program.parseAsync(process.argv).catch(fail)

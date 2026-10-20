@@ -13,7 +13,7 @@ function request(root: string, changed: string[], includeRules = false): Context
     pr: {} as ContextRequest["pr"],
     changedFiles: changed.map((p) => ({ path: p }) as ContextRequest["changedFiles"][number]),
     ticketRefs: [],
-    options: { contextFiles: [], includeRules, skipGenerated: [], contextMaxBytes: 1e6, frontendMatch: [] } as ContextRequest["options"],
+    options: { contextFiles: [], includeRules, skipGenerated: [], testMatch: [], contextMaxBytes: 1e6, frontendMatch: [] } as ContextRequest["options"],
   }
 }
 

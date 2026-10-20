@@ -6,7 +6,7 @@ import path from "node:path"
 import { run } from "../core/process.js"
 import { listChangedFiles } from "./diff.js"
 
-const options = { skipGenerated: ["**/*.lock"], contextFiles: [], includeRules: false, contextMaxBytes: 0, frontendMatch: [] }
+const options = { skipGenerated: ["**/*.lock"], testMatch: [], contextFiles: [], includeRules: false, contextMaxBytes: 0, frontendMatch: [] }
 const env = { ...process.env, GIT_AUTHOR_NAME: "t", GIT_AUTHOR_EMAIL: "t@t", GIT_COMMITTER_NAME: "t", GIT_COMMITTER_EMAIL: "t@t" }
 
 test("changed files keep their real names, renames included", () => {

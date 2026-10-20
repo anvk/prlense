@@ -3,7 +3,7 @@ import assert from "node:assert/strict"
 import fs from "node:fs"
 import os from "node:os"
 import path from "node:path"
-import { isOfflineInvocation, resolveExplainTarget } from "./target.js"
+import { opensReportFile, resolveExplainTarget } from "./target.js"
 
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "prlense-target-"))
 const reportFile = path.join(tmp, "pr-482.json")
@@ -37,9 +37,9 @@ test("anything else is refused with advice rather than a stack trace", () => {
 })
 
 test("reading a local report never triggers the network", () => {
-  assert.equal(isOfflineInvocation(["node", "prlense", "explain", reportFile]), true)
-  assert.equal(isOfflineInvocation(["node", "prlense", reportFile]), true)
-  assert.equal(isOfflineInvocation(["node", "prlense", "explain", "482"]), false)
-  assert.equal(isOfflineInvocation(["node", "prlense", "explain", "https://example.com/a.json"]), false)
-  assert.equal(isOfflineInvocation(["node", "prlense"]), false)
+  assert.equal(opensReportFile(["node", "prlense", "explain", reportFile]), true)
+  assert.equal(opensReportFile(["node", "prlense", reportFile]), true)
+  assert.equal(opensReportFile(["node", "prlense", "explain", "482"]), false)
+  assert.equal(opensReportFile(["node", "prlense", "explain", "https://example.com/a.json"]), false)
+  assert.equal(opensReportFile(["node", "prlense"]), false)
 })

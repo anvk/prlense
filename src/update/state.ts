@@ -2,8 +2,8 @@
 // checkout: the updater resets that tree, and a file inside it would also trip the
 // "is the checkout clean" guard.
 import fs from "node:fs"
-import os from "node:os"
 import path from "node:path"
+import { prlenseHome } from "../core/paths.js"
 
 interface UpdateState {
   // A commit that failed to build. Retrying it on every invocation would cost half a minute
@@ -18,7 +18,7 @@ interface InstallMarker {
 const LOCK_STALE_MS = 10 * 60 * 1000
 
 function stateDir(): string {
-  return path.join(os.homedir(), ".prlense")
+  return prlenseHome()
 }
 
 function statePath(): string {

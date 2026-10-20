@@ -2,32 +2,27 @@
 import fs from "node:fs"
 import pc from "picocolors"
 import { readUserConfig, resolveEngineConfig, type EngineFlags } from "../core/config.js"
-import { createEngine } from "../engine/select.js"
-import { commandExists, tryRun } from "../core/process.js"
+import { createEngine } from "../engine/registry.js"
+import { toolchainChecks } from "./checks.js"
 import { findRepoRoot, listRemotes } from "../github/remotes.js"
 import { probeRemote } from "../update/index.js"
 import { describeVersion, resolveInstall } from "../update/install.js"
 import { errorMessage } from "../core/util.js"
 
-export function runDoctorCommand(opts: { repo?: string; cliScriptPath: string } & EngineFlags): void {
+export function runDoctorCommand(opts: { repo?: string } & EngineFlags): void {
   const ok = (label: string, good: boolean, detail: string) => {
     console.log(`${good ? pc.green("✓") : pc.red("✗")} ${label}${detail ? pc.dim(" — " + detail) : ""}`)
     return good
   }
   let allGood = true
-  allGood = ok("git", commandExists("git"), tryRun("git", ["--version"]).stdout) && allGood
-  const ghVersion = tryRun("gh", ["--version"])
-  allGood = ok("gh", ghVersion.status === 0, ghVersion.stdout.split("\n")[0] ?? "") && allGood
-  const ghAuth = tryRun("gh", ["auth", "status"])
-  allGood = ok("gh auth", ghAuth.status === 0, ghAuth.status === 0 ? "logged in" : "run: gh auth login") && allGood
-  ok("node", true, process.version)
+  for (const check of toolchainChecks()) allGood = ok(check.label, check.ok, check.detail) && allGood
 
   try {
     const repoRoot = findRepoRoot(opts.repo)
     const remotes = listRemotes(repoRoot)
     ok("repo", true, `${repoRoot} (${remotes.map((r) => `${r.name}→${r.slug}`).join(", ") || "no GitHub remotes"})`)
   } catch (error) {
-    ok("repo", false, errorMessage(error).split("\n")[0])
+    allGood = ok("repo", false, errorMessage(error).split("\n")[0]) && allGood
   }
 
   try {
@@ -56,7 +51,7 @@ export function runDoctorCommand(opts: { repo?: string; cliScriptPath: string } 
     const { config: user, source } = readUserConfig()
     ok("~/.prlense/config.json", true, source ?? "not present, defaults apply")
     const engineConfig = resolveEngineConfig(user, opts)
-    const engine = createEngine(engineConfig, opts.cliScriptPath)
+    const engine = createEngine(engineConfig)
     const doc = engine.doctor()
     allGood = ok(`engine ${engine.name}`, doc.ok, doc.details.join("; ")) && allGood
   } catch (error) {

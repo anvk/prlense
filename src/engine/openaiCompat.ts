@@ -1,6 +1,8 @@
 import fs from "node:fs"
+import { isRecord } from "../core/guards.js"
 import { describeToolCall, runWorkspaceTool, WORKSPACE_TOOL_NAMES, WORKSPACE_TOOLS } from "./tools.js"
-import type { DoctorResult, Engine, EngineInput, EngineResult } from "./types.js"
+import { optNumber, optString } from "../core/guards.js"
+import type { DoctorResult, Engine, EngineInput, EngineKind, EngineResult } from "./types.js"
 
 export interface OpenAiCompatOptions {
   baseUrl: string
@@ -8,6 +10,25 @@ export interface OpenAiCompatOptions {
   // Environment variable holding the key. Left out for a local server that needs none.
   apiKeyEnv?: string
   maxSteps?: number
+}
+
+export interface OpenAiCompatConfig extends OpenAiCompatOptions {
+  kind: "openai-compat"
+}
+
+export const OPENAI_COMPAT: EngineKind<OpenAiCompatConfig> = {
+  needs: "a preset in ~/.prlense/config.json with baseUrl, model, and apiKeyEnv unless the endpoint is local",
+  parse(raw, where) {
+    const baseUrl = optString(raw, "baseUrl", where)
+    const model = optString(raw, "model", where)
+    // A local server (Ollama, LM Studio) needs no key, so apiKeyEnv is optional.
+    const apiKeyEnv = optString(raw, "apiKeyEnv", where)
+    if (!baseUrl || !model) {
+      throw new Error(`${where}: openai-compat needs "baseUrl" and "model" (and "apiKeyEnv" unless the endpoint is local)`)
+    }
+    return { kind: "openai-compat", baseUrl, model, apiKeyEnv, maxSteps: optNumber(raw, "maxSteps", where) }
+  },
+  create: (config) => new OpenAiCompatEngine(config),
 }
 
 const DEFAULT_MAX_STEPS = 80
@@ -184,7 +205,7 @@ function answerInstructions(schema: object): string {
 function parseArguments(raw: string): Record<string, unknown> {
   try {
     const value = JSON.parse(raw || "{}") as unknown
-    return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : {}
+    return isRecord(value) ? value : {}
   } catch {
     return {}
   }

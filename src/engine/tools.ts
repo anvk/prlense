@@ -5,6 +5,7 @@
 import { spawnSync } from "node:child_process"
 import fs from "node:fs"
 import path from "node:path"
+import { walkFiles } from "../core/files.js"
 import { globToRegExp } from "../core/glob.js"
 import { isAllowedBash } from "./bashGuard.js"
 import type { ToolNames } from "./types.js"
@@ -13,7 +14,6 @@ const MAX_OUTPUT_CHARS = 30_000
 const DEFAULT_READ_LINES = 2000
 const MAX_LISTED_FILES = 500
 const COMMAND_TIMEOUT_MS = 60_000
-const SKIPPED_DIRS = new Set([".git", "node_modules"])
 
 export interface ToolDefinition {
   name: string
@@ -131,21 +131,7 @@ function readFile(root: string, relative: string, offset = 1, limit = DEFAULT_RE
 
 function listFiles(root: string, pattern: string): string {
   const matcher = globToRegExp(pattern.replace(/^\.\//, ""))
-  const rootReal = fs.realpathSync(root)
-  const found: string[] = []
-  const walk = (dir: string): void => {
-    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
-      if (found.length > MAX_LISTED_FILES) return
-      const full = path.join(dir, entry.name)
-      if (entry.isDirectory()) {
-        if (!SKIPPED_DIRS.has(entry.name)) walk(full)
-      } else if (entry.isFile()) {
-        const rel = path.relative(rootReal, full).split(path.sep).join("/")
-        if (matcher.test(rel)) found.push(rel)
-      }
-    }
-  }
-  walk(rootReal)
+  const found = walkFiles(fs.realpathSync(root), { keep: (rel) => matcher.test(rel), limit: MAX_LISTED_FILES + 1 })
   if (found.length === 0) return "No files match."
   const shown = found.slice(0, MAX_LISTED_FILES).sort()
   const more = found.length > MAX_LISTED_FILES ? `\n… more than ${MAX_LISTED_FILES} files; narrow the pattern` : ""

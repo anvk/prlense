@@ -5,17 +5,28 @@ export interface Remote {
   name: string
   url: string
   slug: string // owner/repo
+  host: string // github.com, or a GitHub Enterprise host
+}
+
+// The host and owner/repo of a remote URL, for github.com and GitHub Enterprise alike.
+export function parseRemoteUrl(url: string): { host: string; slug: string } | null {
+  const trimmed = url.trim().replace(/\/+$/, "").replace(/\.git$/, "")
+  // git@github.com:owner/repo
+  let m = /^[\w.-]+@([\w.-]+):([^/\s]+)\/([^/\s]+)$/.exec(trimmed)
+  if (m) return { host: m[1].toLowerCase(), slug: `${m[2]}/${m[3]}` }
+  // https://github.com/owner/repo or ssh://git@github.com:22/owner/repo
+  m = /^(?:https?|ssh|git):\/\/(?:[^@/]+@)?([^/:]+)(?::\d+)?\/([^/\s]+)\/([^/\s]+)$/.exec(trimmed)
+  if (m) return { host: m[1].toLowerCase(), slug: `${m[2]}/${m[3]}` }
+  return null
 }
 
 export function slugFromRemoteUrl(url: string): string | null {
-  const trimmed = url.trim().replace(/\/+$/, "").replace(/\.git$/, "")
-  // git@github.com:owner/repo
-  let m = /^[\w.-]+@[\w.-]+:([^/\s]+)\/([^/\s]+)$/.exec(trimmed)
-  if (m) return `${m[1]}/${m[2]}`
-  // https://github.com/owner/repo or ssh://git@github.com/owner/repo
-  m = /^(?:https?|ssh|git):\/\/(?:[^@/]+@)?[^/]+\/([^/\s]+)\/([^/\s]+)$/.exec(trimmed)
-  if (m) return `${m[1]}/${m[2]}`
-  return null
+  return parseRemoteUrl(url)?.slug ?? null
+}
+
+// How gh names the repo: bare owner/repo on github.com, with the host otherwise.
+export function ghRepoArg(remote: Pick<Remote, "host" | "slug">): string {
+  return remote.host === "github.com" ? remote.slug : `${remote.host}/${remote.slug}`
 }
 
 export function listRemotes(repoRoot: string): Remote[] {
@@ -24,9 +35,9 @@ export function listRemotes(repoRoot: string): Remote[] {
   for (const line of stdout.split("\n")) {
     const m = /^(\S+)\s+(\S+)\s+\((fetch|push)\)$/.exec(line.trim())
     if (!m || seen.has(m[1])) continue
-    const slug = slugFromRemoteUrl(m[2])
-    if (!slug) continue
-    seen.set(m[1], { name: m[1], url: m[2], slug })
+    const parsed = parseRemoteUrl(m[2])
+    if (!parsed) continue
+    seen.set(m[1], { name: m[1], url: m[2], ...parsed })
   }
   return [...seen.values()]
 }
@@ -34,6 +45,7 @@ export function listRemotes(repoRoot: string): Remote[] {
 export interface PickRemoteOptions {
   remoteFlag?: string
   urlSlug?: string // owner/repo parsed from a PR URL, when given
+  urlHost?: string // the host of that URL
 }
 
 export function pickRemote(remotes: Remote[], opts: PickRemoteOptions): Remote {
@@ -47,7 +59,7 @@ export function pickRemote(remotes: Remote[], opts: PickRemoteOptions): Remote {
   }
   if (opts.urlSlug) {
     const want = opts.urlSlug.toLowerCase()
-    const r = remotes.find((x) => x.slug.toLowerCase() === want)
+    const r = remotes.find((x) => x.slug.toLowerCase() === want && (!opts.urlHost || x.host === opts.urlHost.toLowerCase()))
     if (!r) {
       throw new Error(
         `The PR belongs to ${opts.urlSlug}, but this checkout only has remotes for:\n${list}\nRun prlense inside a checkout of that repo, or pass -C <path>.`,

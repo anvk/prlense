@@ -49,3 +49,15 @@ export interface Engine {
   run(input: EngineInput): Promise<EngineResult>
   doctor(): DoctorResult
 }
+
+// One kind of engine, as the config and the CLI see it. Adding an engine means writing one
+// of these and listing it in engine/registry.ts.
+export interface EngineKind<C extends { kind: string; model?: string }> {
+  // Reads this kind's fields from a config object; throws naming `where` on a bad one.
+  parse(raw: Record<string, unknown>, where: string): C
+  create(config: C): Engine
+  // What `--engine <kind>` means when no preset has that name. Left out for a kind that
+  // needs settings only a preset can hold; `needs` then says which.
+  bare?: C
+  needs?: string
+}

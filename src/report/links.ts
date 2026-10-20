@@ -6,8 +6,17 @@ export function diffAnchor(repoPath: string): string {
   return createHash("sha256").update(repoPath).digest("hex")
 }
 
+// github.com, or the GitHub Enterprise host the PR lives on.
+function origin(pr: PrHeader): string {
+  try {
+    return new URL(pr.url).origin
+  } catch {
+    return "https://github.com"
+  }
+}
+
 export function diffUrl(pr: PrHeader, ref: FileRef): string {
-  const base = `https://github.com/${pr.slug}/pull/${pr.number}/files#diff-${diffAnchor(ref.path)}`
+  const base = `${origin(pr)}/${pr.slug}/pull/${pr.number}/files#diff-${diffAnchor(ref.path)}`
   if (ref.line !== undefined) return `${base}R${ref.line}`
   if (ref.oldLine !== undefined) return `${base}L${ref.oldLine}`
   return base
@@ -16,7 +25,7 @@ export function diffUrl(pr: PrHeader, ref: FileRef): string {
 export function blobUrl(pr: PrHeader, ref: FileRef): string {
   const sha = ref.line === undefined && ref.oldLine !== undefined ? pr.baseSha : pr.headSha
   const line = ref.line ?? ref.oldLine
-  return `https://github.com/${pr.slug}/blob/${sha}/${ref.path}${line !== undefined ? `#L${line}` : ""}`
+  return `${origin(pr)}/${pr.slug}/blob/${sha}/${ref.path}${line !== undefined ? `#L${line}` : ""}`
 }
 
 function decorate(pr: PrHeader, ref: FileRef): void {
