@@ -39,10 +39,9 @@ export function resolveExplainTarget(input: string): ExplainTarget {
   )
 }
 
-// Whether this invocation only reads a report, so nothing should reach the network on its
-// behalf. Checked in the CLI entry before self-update runs: opening a report a colleague
-// sent you has to work on a plane.
-export function isOfflineInvocation(argv: string[]): boolean {
+// Whether this invocation only opens a report file, so nothing should reach the network on
+// its behalf: opening a report a colleague sent you has to work on a plane.
+export function opensReportFile(argv: string[]): boolean {
   const args = argv.slice(2).filter((a) => !a.startsWith("-"))
   const first = args[0]
   if (!first) return false

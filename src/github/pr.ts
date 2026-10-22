@@ -1,25 +1,21 @@
 import { run } from "../core/process.js"
-import type { Remote } from "./remotes.js"
+import { ghRepoArg, type Remote } from "./remotes.js"
 
 export interface PrRef {
   number: number
   owner?: string
   repo?: string
+  host?: string
 }
 
 export function tryParsePrRef(input: string): PrRef | null {
   const s = input.trim()
   let m = /^#?(\d+)$/.exec(s)
   if (m) return { number: Number(m[1]) }
-  m = /^https?:\/\/github\.com\/([^/\s]+)\/([^/\s]+)\/pull\/(\d+)(?:[/?#].*)?$/.exec(s)
-  if (m) return { number: Number(m[3]), owner: m[1], repo: m[2] }
+  // github.com or a GitHub Enterprise host: https://<host>/<owner>/<repo>/pull/<n>
+  m = /^https?:\/\/([^/\s]+)\/([^/\s]+)\/([^/\s]+)\/pull\/(\d+)(?:[/?#].*)?$/.exec(s)
+  if (m) return { number: Number(m[4]), owner: m[2], repo: m[3], host: m[1].toLowerCase() }
   return null
-}
-
-export function parsePrRef(input: string): PrRef {
-  const ref = tryParsePrRef(input)
-  if (!ref) throw new Error(`Unrecognized PR reference "${input}". Use a number, #number, or a GitHub PR URL.`)
-  return ref
 }
 
 export interface TicketRef {
@@ -27,9 +23,21 @@ export interface TicketRef {
   url?: string
 }
 
+// The scheme and host a PR's own URL lives on, github.com when it has none.
+export function webOrigin(url: string): string {
+  try {
+    return new URL(url).origin
+  } catch {
+    return "https://github.com"
+  }
+}
+
+function escapeRegExp(text: string): string {
+  return text.replace(/[.*+?^${}()|[\]\\/]/g, "\\$&")
+}
+
 const KEY = /[A-Z][A-Z0-9]{1,9}-\d{1,6}/
 const TRACKER_URL = /https?:\/\/[^\s)\]>]+?\/(?:browse|issue)\/([A-Z][A-Z0-9]{1,9}-\d{1,6})(?:[/?#][^\s)\]>]*)?/g
-const GITHUB_ISSUE_URL = /https?:\/\/github\.com\/([\w.-]+\/[\w.-]+)\/issues\/(\d+)/g
 const CLOSING_REF = /\b(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?)\s+((?:[\w.-]+\/[\w.-]+)?#(\d+))/gi
 
 // The tickets a PR points at, without guessing:
@@ -38,17 +46,20 @@ const CLOSING_REF = /\b(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?)\s+((?:[\w.-]+\/
 //  - a bare key such as ABC-123 only when the branch name or the start of the title carries
 //    it, which is how a PR is tied to a ticket. On its own the shape also matches UTF-8 or
 //    SHA-256.
-export function extractTicketRefs(pr: Pick<PrMeta, "body" | "title" | "headRefName" | "slug">): TicketRef[] {
+export function extractTicketRefs(pr: Pick<PrMeta, "body" | "title" | "headRefName" | "slug" | "url">): TicketRef[] {
+  // Issues live on the same host as the PR: github.com, or a GitHub Enterprise server.
+  const origin = webOrigin(pr.url)
+  const issueUrl = new RegExp(`${escapeRegExp(origin)}/([\\w.-]+/[\\w.-]+)/issues/(\\d+)`, "g")
   const out = new Map<string, TicketRef>()
   const add = (key: string, url?: string) => {
     if (!out.has(key) || (url && !out.get(key)!.url)) out.set(key, { key, url })
   }
   // A link that ends a sentence keeps its full stop otherwise.
   for (const m of pr.body.matchAll(TRACKER_URL)) add(m[1], m[0].replace(/[.,;:!?]+$/, ""))
-  for (const m of pr.body.matchAll(GITHUB_ISSUE_URL)) add(`${m[1]}#${m[2]}`, m[0])
+  for (const m of pr.body.matchAll(issueUrl)) add(`${m[1]}#${m[2]}`, m[0])
   for (const m of pr.body.matchAll(CLOSING_REF)) {
     const repo = m[1].includes("/") ? m[1].split("#")[0] : pr.slug
-    add(m[1].includes("/") ? m[1] : `#${m[2]}`, `https://github.com/${repo}/issues/${m[2]}`)
+    add(m[1].includes("/") ? m[1] : `#${m[2]}`, `${origin}/${repo}/issues/${m[2]}`)
   }
   const declared = new Set<string>()
   for (const m of pr.headRefName.matchAll(new RegExp(KEY.source, "gi"))) declared.add(m[0].toUpperCase())
@@ -86,7 +97,7 @@ const GH_FIELDS = [
 ]
 
 export function resolvePr(remote: Remote, ref: PrRef): PrMeta {
-  const { stdout } = run("gh", ["pr", "view", String(ref.number), "--repo", remote.slug, "--json", GH_FIELDS.join(",")])
+  const { stdout } = run("gh", ["pr", "view", String(ref.number), "--repo", ghRepoArg(remote), "--json", GH_FIELDS.join(",")])
   const raw = JSON.parse(stdout) as Record<string, unknown>
   const headRepo = raw.headRepository as { name?: string } | null
   const headOwner = raw.headRepositoryOwner as { login?: string } | null

@@ -1,6 +1,8 @@
 import fs from "node:fs"
 import path from "node:path"
-import { FUNCTION_CHANGES, FUNCTION_KINDS, MODEL_CHANGE_KINDS, MODEL_CHANGES, MODEL_GROUPS, REFERENCE_KINDS, RISK_KINDS, ROW_CHANGES, WHAT_SECTION_KINDS, type AgentOutput, type FileRef, type ModelGroup, type RiskItem, type RowChange, type ShapeRow, type SourceRef, type WhatSectionKind } from "./types.js"
+import { MODEL_GROUPS, WHAT_SECTION_KINDS, type AgentOutput, type FileRef, type SourceRef } from "./types.js"
+import { AGENT_OUTPUT_SCHEMA } from "./schema.js"
+import { checkSchema, keepDeclared, type Schema } from "./schemaCheck.js"
 
 export class ValidationError extends Error {
   constructor(public readonly errors: string[]) {
@@ -8,235 +10,40 @@ export class ValidationError extends Error {
   }
 }
 
-type Rec = Record<string, unknown>
-const isRec = (v: unknown): v is Rec => typeof v === "object" && v !== null && !Array.isArray(v)
-
-class Checker {
-  errors: string[] = []
-  str(o: Rec, k: string, at: string, required = true): string | undefined {
-    const v = o[k]
-    if (v === undefined) {
-      if (required) this.errors.push(`${at}.${k}: missing`)
-      return undefined
-    }
-    if (typeof v !== "string") {
-      this.errors.push(`${at}.${k}: expected string`)
-      return undefined
-    }
-    return v
-  }
-  strArr(o: Rec, k: string, at: string, required = true): string[] {
-    const v = o[k]
-    if (v === undefined) {
-      if (required) this.errors.push(`${at}.${k}: missing`)
-      return []
-    }
-    if (!Array.isArray(v) || v.some((x) => typeof x !== "string")) {
-      this.errors.push(`${at}.${k}: expected array of strings`)
-      return []
-    }
-    return v as string[]
-  }
-  arr(o: Rec, k: string, at: string, required = true): unknown[] {
-    const v = o[k]
-    if (v === undefined) {
-      if (required) this.errors.push(`${at}.${k}: missing`)
-      return []
-    }
-    if (!Array.isArray(v)) {
-      this.errors.push(`${at}.${k}: expected array`)
-      return []
-    }
-    return v
-  }
-  oneOf(v: unknown, allowed: readonly string[], at: string): void {
-    if (typeof v !== "string" || !allowed.includes(v)) this.errors.push(`${at}: expected one of ${allowed.join(", ")}`)
-  }
-  fileRef(v: unknown, at: string): FileRef | undefined {
-    if (!isRec(v)) {
-      this.errors.push(`${at}: expected object`)
-      return undefined
-    }
-    const p = this.str(v, "path", at)
-    if (p === undefined) return undefined
-    const ref: FileRef = { path: p.replace(/^\.\//, "") }
-    for (const k of ["line", "oldLine"] as const) {
-      if (v[k] !== undefined) {
-        if (typeof v[k] !== "number" || !Number.isInteger(v[k])) this.errors.push(`${at}.${k}: expected integer`)
-        else ref[k] = v[k] as number
-      }
-    }
-    if (typeof v.symbol === "string") ref.symbol = v.symbol
-    return ref
-  }
+// Structure comes from the schema the model is given (report/schema.ts), so this file only
+// adds what a schema cannot say: tidying values, and the meaning checks below.
+export function parseAgentOutput(raw: unknown): AgentOutput {
+  const errors = checkSchema(AGENT_OUTPUT_SCHEMA as Schema, raw)
+  if (errors.length) throw new ValidationError(errors)
+  return tidy(keepDeclared<AgentOutput>(AGENT_OUTPUT_SCHEMA as Schema, raw))
 }
 
-// Structural check with hand-written guards. Engines with schema enforcement make this
-// redundant, but engines without it need it, and it normalizes the shape either way.
-export function parseAgentOutput(raw: unknown): AgentOutput {
-  const c = new Checker()
-  if (!isRec(raw)) throw new ValidationError(["output: expected object"])
-
-  const why = isRec(raw.why) ? raw.why : (c.errors.push("why: missing"), {})
-  const what = isRec(raw.what) ? raw.what : (c.errors.push("what: missing"), {})
-  const model = isRec(raw.model) ? raw.model : (c.errors.push("model: missing"), {})
-  const functions = isRec(raw.functions) ? raw.functions : (c.errors.push("functions: missing"), {})
-  const details = isRec(raw.details) ? raw.details : (c.errors.push("details: missing"), {})
-  const coverage = isRec(raw.coverage) ? raw.coverage : (c.errors.push("coverage: missing"), {})
-  const review = isRec(raw.review) ? raw.review : (c.errors.push("review: missing"), {})
-
-  const sourceRef = (v: unknown): SourceRef | undefined => {
-    if (!isRec(v)) return undefined
-    const ref: SourceRef = {}
-    if (typeof v.modelChange === "string" && v.modelChange.trim()) ref.modelChange = v.modelChange.trim()
-    if (typeof v.detailId === "string" && v.detailId.trim()) ref.detailId = v.detailId.trim()
-    return ref.modelChange || ref.detailId ? ref : undefined
+// Small normalizations that make a report the same however a model phrased it.
+function tidy(out: AgentOutput): AgentOutput {
+  const ref = (r: FileRef): FileRef => ({ ...r, path: r.path.replace(/^\.\//, "") })
+  const flag = (v: boolean | undefined): true | undefined => (v === true ? true : undefined)
+  const source = (s: SourceRef | undefined): SourceRef | undefined => {
+    const modelChange = s?.modelChange?.trim() || undefined
+    const detailId = s?.detailId?.trim() || undefined
+    return modelChange || detailId ? { modelChange, detailId } : undefined
   }
-
-  const out: AgentOutput = {
-    why: {
-      paragraphs: c.strArr(why, "paragraphs", "why"),
-      references: c.arr(why, "references", "why").flatMap((r, i) => {
-        const at = `why.references[${i}]`
-        if (!isRec(r)) return (c.errors.push(`${at}: expected object`), [])
-        const label = c.str(r, "label", at) ?? ""
-        c.oneOf(r.kind, REFERENCE_KINDS, `${at}.kind`)
-        return [{ label, kind: r.kind as never, url: typeof r.url === "string" ? r.url : undefined, note: typeof r.note === "string" ? r.note : undefined }]
-      }),
-    },
-    what: {
-      lead: c.str(what, "lead", "what") ?? "",
-      sections: c.arr(what, "sections", "what").flatMap((sec, i) => {
-        const at = `what.sections[${i}]`
-        if (!isRec(sec)) return (c.errors.push(`${at}: expected object`), [])
-        c.oneOf(sec.kind, WHAT_SECTION_KINDS, `${at}.kind`)
-        return [{
-          kind: sec.kind as WhatSectionKind,
-          title: c.str(sec, "title", at) ?? "",
-          summary: c.str(sec, "summary", at) ?? "",
-          points: c.strArr(sec, "points", at),
-        }]
-      }),
-    },
-    model: {
-      summary: c.str(model, "summary", "model") ?? "",
-      changes: c.arr(model, "changes", "model").flatMap((m, i) => {
-        const at = `model.changes[${i}]`
-        if (!isRec(m)) return (c.errors.push(`${at}: expected object`), [])
-        c.oneOf(m.kind, MODEL_CHANGE_KINDS, `${at}.kind`)
-        c.oneOf(m.change, MODEL_CHANGES, `${at}.change`)
-        c.oneOf(m.group, MODEL_GROUPS, `${at}.group`)
-        const shape: ShapeRow[] | undefined =
-          m.shape === undefined
-            ? undefined
-            : c.arr(m, "shape", at).flatMap((row, j) => {
-                const ra = `${at}.shape[${j}]`
-                if (!isRec(row)) return (c.errors.push(`${ra}: expected object`), [])
-                c.oneOf(row.change, ROW_CHANGES, `${ra}.change`)
-                return [{
-                  name: c.str(row, "name", ra) ?? "",
-                  type: c.str(row, "type", ra) ?? "",
-                  keys: typeof row.keys === "string" ? row.keys : undefined,
-                  note: typeof row.note === "string" ? row.note : undefined,
-                  change: row.change as RowChange,
-                }]
-              })
-        return [{
-          group: m.group as ModelGroup,
-          kind: m.kind as never,
-          change: m.change as never,
-          name: c.str(m, "name", at) ?? "",
-          description: c.str(m, "description", at) ?? "",
-          attention: m.attention === true ? true : undefined,
-          shape: shape && shape.length ? shape : undefined,
-          indexes: m.indexes === undefined ? undefined : c.strArr(m, "indexes", at),
-          relations: m.relations === undefined ? undefined : c.strArr(m, "relations", at),
-          locations: c.arr(m, "locations", at).flatMap((l, j) => c.fileRef(l, `${at}.locations[${j}]`) ?? []),
-          risk: typeof m.risk === "string" ? m.risk : undefined,
-          unverified: m.unverified === true ? true : undefined,
-        }]
-      }),
-    },
-    functions: {
-      groups: c.arr(functions, "groups", "functions").flatMap((g, i) => {
-        const at = `functions.groups[${i}]`
-        if (!isRec(g)) return (c.errors.push(`${at}: expected object`), [])
-        return [{
-          area: c.str(g, "area", at) ?? "",
-          items: c.arr(g, "items", at).flatMap((it, j) => {
-            const a = `${at}.items[${j}]`
-            if (!isRec(it)) return (c.errors.push(`${a}: expected object`), [])
-            c.oneOf(it.kind, FUNCTION_KINDS, `${a}.kind`)
-            c.oneOf(it.change, FUNCTION_CHANGES, `${a}.change`)
-            const location = c.fileRef(it.location, `${a}.location`)
-            if (!location) return []
-            return [{
-              name: c.str(it, "name", a) ?? "",
-              kind: it.kind as never,
-              change: it.change as never,
-              summary: c.str(it, "summary", a) ?? "",
-              location,
-              detailIds: it.detailIds === undefined ? undefined : c.strArr(it, "detailIds", a),
-            }]
-          }),
-        }]
-      }),
-    },
-    details: {
-      changes: c.arr(details, "changes", "details").flatMap((d, i) => {
-        const at = `details.changes[${i}]`
-        if (!isRec(d)) return (c.errors.push(`${at}: expected object`), [])
-        return [{
-          id: c.str(d, "id", at) ?? `d${i + 1}`,
-          title: c.str(d, "title", at) ?? "",
-          area: typeof d.area === "string" ? d.area : undefined,
-          files: c.arr(d, "files", at).flatMap((f, j) => c.fileRef(f, `${at}.files[${j}]`) ?? []),
-          before: typeof d.before === "string" ? d.before : undefined,
-          after: c.str(d, "after", at) ?? "",
-          explanation: c.strArr(d, "explanation", at),
-          callers: d.callers === undefined ? undefined : c.strArr(d, "callers", at),
-          tests: d.tests === undefined ? undefined : c.arr(d, "tests", at).flatMap((f, j) => c.fileRef(f, `${at}.tests[${j}]`) ?? []),
-          unverified: d.unverified === true ? true : undefined,
-        }]
-      }),
-    },
-    review: {
-      risks: c.arr(review, "risks", "review").flatMap((r, i) => {
-        const at = `review.risks[${i}]`
-        if (!isRec(r)) return (c.errors.push(`${at}: expected object`), [])
-        c.oneOf(r.kind, RISK_KINDS, `${at}.kind`)
-        return [{
-          kind: r.kind as RiskItem["kind"],
-          title: c.str(r, "title", at) ?? "",
-          consequence: c.str(r, "consequence", at) ?? "",
-          source: sourceRef(r.source),
-          unverified: r.unverified === true ? true : undefined,
-        }]
-      }),
-      questions: c.arr(review, "questions", "review").flatMap((q, i) => {
-        const at = `review.questions[${i}]`
-        if (!isRec(q)) return (c.errors.push(`${at}: expected object`), [])
-        return [{ question: c.str(q, "question", at) ?? "", context: c.str(q, "context", at) ?? "", source: sourceRef(q.source) }]
-      }),
-      glossary: c.arr(review, "glossary", "review").flatMap((g, i) => {
-        const at = `review.glossary[${i}]`
-        if (!isRec(g)) return (c.errors.push(`${at}: expected object`), [])
-        return [{ term: c.str(g, "term", at) ?? "", meaning: c.str(g, "meaning", at) ?? "" }]
-      }),
-    },
-    coverage: {
-      filesTraced: c.strArr(coverage, "filesTraced", "coverage"),
-      filesSkippedGenerated: c.strArr(coverage, "filesSkippedGenerated", "coverage"),
-      filesSkippedTests: c.strArr(coverage, "filesSkippedTests", "coverage"),
-      filesUntraced: c.arr(coverage, "filesUntraced", "coverage").flatMap((u, i) => {
-        const at = `coverage.filesUntraced[${i}]`
-        if (!isRec(u)) return (c.errors.push(`${at}: expected object`), [])
-        return [{ path: c.str(u, "path", at) ?? "", reason: c.str(u, "reason", at) ?? "" }]
-      }),
-      notes: coverage.notes === undefined ? undefined : c.strArr(coverage, "notes", "coverage"),
-    },
+  for (const m of out.model.changes) {
+    m.locations = m.locations.map(ref)
+    m.attention = flag(m.attention)
+    m.unverified = flag(m.unverified)
+    if (m.shape && m.shape.length === 0) m.shape = undefined
   }
-  if (c.errors.length) throw new ValidationError(c.errors)
+  for (const g of out.functions.groups) for (const it of g.items) it.location = ref(it.location)
+  for (const d of out.details.changes) {
+    d.files = d.files.map(ref)
+    d.tests = d.tests?.map(ref)
+    d.unverified = flag(d.unverified)
+  }
+  for (const r of out.review.risks) {
+    r.source = source(r.source)
+    r.unverified = flag(r.unverified)
+  }
+  for (const q of out.review.questions) q.source = source(q.source)
   return out
 }
 

@@ -2,8 +2,9 @@ import { spawn } from "node:child_process"
 import fs from "node:fs"
 import os from "node:os"
 import path from "node:path"
+import { optString } from "../core/guards.js"
 import { tryRun } from "../core/process.js"
-import type { DoctorResult, Engine, EngineInput, EngineResult, ToolNames } from "./types.js"
+import type { DoctorResult, Engine, EngineInput, EngineKind, EngineResult, ToolNames } from "./types.js"
 
 // Everything specific to Claude Code lives in this file: its defaults, its tool names, and
 // how a session is started and read back.
@@ -19,11 +20,40 @@ const CLAUDE_CODE_TOOLS: ToolNames = {
   showBase: "`git show BASE_SHA:<path>`",
 }
 
+export interface ClaudeCliConfig {
+  kind: "claude-cli"
+  model?: string
+  effort?: ClaudeEffort
+}
+
 export interface ClaudeCliOptions {
   model: string
   effort: ClaudeEffort
-  // Absolute path to the prlense entry script, used as the bash-guard hook command.
-  cliScriptPath: string
+  // The prlense entry script the bash-guard hook runs. Defaults to the one running now.
+  cliScriptPath?: string
+}
+
+export const CLAUDE_CLI: EngineKind<ClaudeCliConfig> = {
+  bare: { kind: "claude-cli", model: CLAUDE_DEFAULT_MODEL, effort: CLAUDE_DEFAULT_EFFORT },
+  parse(raw, where) {
+    const effort = optString(raw, "effort", where)
+    if (effort && !(CLAUDE_EFFORTS as readonly string[]).includes(effort)) {
+      throw new Error(`${where}: "effort" must be one of ${CLAUDE_EFFORTS.join(", ")}`)
+    }
+    return {
+      kind: "claude-cli",
+      model: optString(raw, "model", where) ?? CLAUDE_DEFAULT_MODEL,
+      effort: (effort as ClaudeEffort | undefined) ?? CLAUDE_DEFAULT_EFFORT,
+    }
+  },
+  create: (config) =>
+    new ClaudeCliEngine({ model: config.model ?? CLAUDE_DEFAULT_MODEL, effort: config.effort ?? CLAUDE_DEFAULT_EFFORT }),
+}
+
+// The script node is running (the npm bin is a symlink, so it is resolved), which is what
+// the hook calls back into.
+function entryScript(): string {
+  return fs.realpathSync(process.argv[1])
 }
 
 interface ClaudeResultJson {
@@ -89,7 +119,7 @@ export class ClaudeCliEngine implements Engine {
   async run(input: EngineInput): Promise<EngineResult> {
     const started = Date.now()
     const settingsFile = path.join(fs.mkdtempSync(path.join(os.tmpdir(), "prlense-settings-")), "settings.json")
-    fs.writeFileSync(settingsFile, hooksSettings(this.opts.cliScriptPath))
+    fs.writeFileSync(settingsFile, hooksSettings(this.opts.cliScriptPath ?? entryScript()))
 
     const args = [
       "-p", input.userPrompt,

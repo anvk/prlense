@@ -1,4 +1,4 @@
-export const WIZARD_CSS = `
+export const PAGE_CSS = `
 :root{
   color-scheme:light dark;
   --paper:#f1f4f4;--panel:#fbfcfc;--panel-alt:#e7edec;--line:#cbd6d5;--line-soft:#dde5e4;

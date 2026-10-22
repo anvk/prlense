@@ -23,3 +23,9 @@ test("diffUrl and blobUrl pick the right side and line", () => {
   assert.equal(blobUrl(pr, { path: "go/a.go", line: 12 }), `https://github.com/acme/shop/blob/${"h".repeat(40)}/go/a.go#L12`)
   assert.equal(blobUrl(pr, { path: "go/a.go", oldLine: 7 }), `https://github.com/acme/shop/blob/${"b".repeat(40)}/go/a.go#L7`)
 })
+
+test("links follow the host the PR lives on", () => {
+  const ghe = { ...pr, url: "https://git.acme.dev/acme/shop/pull/482" }
+  assert.ok(diffUrl(ghe, { path: "go/a.go" }).startsWith("https://git.acme.dev/acme/shop/pull/482/files#diff-"))
+  assert.equal(blobUrl(ghe, { path: "go/a.go", line: 3 }), `https://git.acme.dev/acme/shop/blob/${"h".repeat(40)}/go/a.go#L3`)
+})

@@ -3,11 +3,12 @@
 //
 // A prlense run takes minutes, so there is no startup budget to protect: the remote is asked
 // synchronously, and a report is always generated with the newest format.
+import { opensReportFile } from "../github/target.js"
+import { tryGit } from "../core/git.js"
 import fs from "node:fs"
-import os from "node:os"
 import path from "node:path"
+import { defaultInstallDir } from "../core/paths.js"
 import { fileURLToPath } from "node:url"
-import { tryRun } from "../core/process.js"
 import { findDirUp } from "../core/util.js"
 import { readInstallMarker } from "./state.js"
 
@@ -29,7 +30,7 @@ export const MAIN_BRANCH = "main"
 export const CHILD_ENV = "PRLENSE_SELF_UPDATE_CHILD"
 
 function git(cwd: string, args: string[]): string | null {
-  const result = tryRun("git", args, { cwd, timeout: 10_000 })
+  const result = tryGit(cwd, args, { timeout: 10_000 })
   return result.status === 0 ? result.stdout : null
 }
 
@@ -61,7 +62,7 @@ export function resolveInstallPaths(): InstallPaths {
   const packageRoot = findDirUp(here, "package.json") ?? path.resolve(here, "../..")
   const gitRoot = findDirUp(packageRoot, ".git")
   const marker = readInstallMarker().installDir
-  const expected = marker ?? path.join(os.homedir(), ".prlense-cli")
+  const expected = marker ?? defaultInstallDir()
 
   let managed = false
   try {
@@ -131,6 +132,8 @@ export function environmentBlockers(argv: string[]): string[] {
   const first = args.find((a) => !a.startsWith("-"))
   if (first && SKIP_COMMANDS.has(first)) {
     blockers.push(`running '${first}'`)
+  } else if (opensReportFile(argv)) {
+    blockers.push("opening a report file")
   }
   return blockers
 }

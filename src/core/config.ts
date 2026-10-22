@@ -1,16 +1,12 @@
 import fs from "node:fs"
-import os from "node:os"
 import path from "node:path"
-import { CLAUDE_DEFAULT_EFFORT, CLAUDE_DEFAULT_MODEL, CLAUDE_EFFORTS, type ClaudeEffort } from "../engine/claudeCli.js"
+import { DEFAULT_ENGINE_KIND, ENGINE_KINDS, engineKind, type EngineConfig } from "../engine/registry.js"
 import { DEFAULT_FRONTEND_MATCH } from "../report/types.js"
 import { errorMessage } from "./util.js"
+import { isRecord, optNumber, optString, optStringArray } from "./guards.js"
+import { prlenseHome } from "./paths.js"
 
-// The engines prlense can drive. `claude-cli` runs a local Claude Code session;
-// `openai-compat` talks to any chat-completions API (OpenAI, Anthropic, Gemini, Grok,
-// OpenRouter, Ollama, ...) and runs the read-only tools itself.
-export type EngineConfig =
-  | { kind: "claude-cli"; model?: string; effort?: ClaudeEffort }
-  | { kind: "openai-compat"; baseUrl: string; model: string; apiKeyEnv?: string; maxSteps?: number }
+export type { EngineConfig }
 
 // User-level defaults, read from ~/.prlense/config.json. Never holds keys, only env var names.
 export interface UserConfig {
@@ -20,25 +16,50 @@ export interface UserConfig {
   // Tuned once per person, not per repo.
   contextMaxBytes: number
   frontendMatch: string[]
+  generatedMatch: string[]
+  testMatch: string[]
 }
 
+// Files a tool wrote rather than a person: skipped when tracing. Extended per person with
+// "generatedMatch" in the config, and per run with --skip.
 export const DEFAULT_SKIP_GENERATED = [
   "**/*_gen.go",
   "**/*.pb.go",
+  "**/*.generated.*",
   "**/openapi.yaml",
+  "**/vendor/**",
+  "**/*.min.js",
+  "**/*.min.css",
+  "**/*.snap",
+  "**/__snapshots__/**",
   "**/package-lock.json",
   "**/yarn.lock",
   "**/pnpm-lock.yaml",
-  "**/*.snap",
+  "**/go.sum",
+  "**/Cargo.lock",
+  "**/poetry.lock",
+  "**/Gemfile.lock",
+  "**/composer.lock",
 ]
 
-// What runs when ~/.prlense/config.json names no engine: a local Claude Code login, which
-// needs no API key. Any other engine is one config entry away (see the README).
-export const DEFAULT_ENGINE: EngineConfig = {
-  kind: "claude-cli",
-  model: CLAUDE_DEFAULT_MODEL,
-  effort: CLAUDE_DEFAULT_EFFORT,
-}
+// Test code: read for intent, not traced. Extended with "testMatch" in the config.
+export const DEFAULT_TEST_MATCH = [
+  "**/*_test.go",
+  "**/*.test.*",
+  "**/*.spec.*",
+  "**/test_*.py",
+  "**/*_test.py",
+  "**/*_spec.rb",
+  "**/__tests__/**",
+  "**/tests/**",
+  "**/test/**",
+  "**/spec/**",
+  "**/src/test/**",
+  "**/testutil/**",
+  "**/testdata/**",
+]
+
+export const DEFAULT_ENGINE: EngineConfig = ENGINE_KINDS[DEFAULT_ENGINE_KIND].bare!
 
 export const DEFAULT_CONTEXT_MAX_BYTES = 150_000
 
@@ -48,6 +69,8 @@ export function defaultUserConfig(): UserConfig {
     engines: {},
     contextMaxBytes: DEFAULT_CONTEXT_MAX_BYTES,
     frontendMatch: [...DEFAULT_FRONTEND_MATCH],
+    generatedMatch: [],
+    testMatch: [],
   }
 }
 
@@ -57,6 +80,7 @@ export interface RunOptions {
   contextFiles: string[]
   includeRules: boolean
   skipGenerated: string[]
+  testMatch: string[]
   contextMaxBytes: number
   frontendMatch: string[]
 }
@@ -65,68 +89,23 @@ export function buildRunOptions(user: UserConfig, flags: { context?: string[]; w
   return {
     contextFiles: flags.context ?? [],
     includeRules: Boolean(flags.withRules),
-    skipGenerated: [...DEFAULT_SKIP_GENERATED, ...(flags.skip ?? [])],
+    skipGenerated: [...DEFAULT_SKIP_GENERATED, ...user.generatedMatch, ...(flags.skip ?? [])],
+    testMatch: [...DEFAULT_TEST_MATCH, ...user.testMatch],
     contextMaxBytes: user.contextMaxBytes,
     frontendMatch: user.frontendMatch,
   }
 }
 
 export function userConfigDir(): string {
-  return path.join(os.homedir(), ".prlense")
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value)
-}
-
-function optString(obj: Record<string, unknown>, key: string, where: string): string | undefined {
-  const v = obj[key]
-  if (v === undefined) return undefined
-  if (typeof v !== "string") throw new Error(`${where}: "${key}" must be a string`)
-  return v
-}
-
-function optNumber(obj: Record<string, unknown>, key: string, where: string): number | undefined {
-  const v = obj[key]
-  if (v === undefined) return undefined
-  if (typeof v !== "number" || Number.isNaN(v)) throw new Error(`${where}: "${key}" must be a number`)
-  return v
-}
-
-function optStringArray(obj: Record<string, unknown>, key: string, where: string): string[] | undefined {
-  const v = obj[key]
-  if (v === undefined) return undefined
-  if (!Array.isArray(v) || v.some((x) => typeof x !== "string")) {
-    throw new Error(`${where}: "${key}" must be an array of strings`)
-  }
-  return v as string[]
+  return prlenseHome()
 }
 
 export function normalizeEngineConfig(raw: unknown, where: string): EngineConfig {
   if (!isRecord(raw)) throw new Error(`${where}: expected an object`)
-  const kind = optString(raw, "kind", where)
-  if (kind === "claude-cli" || kind === undefined) {
-    const effort = optString(raw, "effort", where)
-    if (effort && !(CLAUDE_EFFORTS as readonly string[]).includes(effort)) {
-      throw new Error(`${where}: "effort" must be one of ${CLAUDE_EFFORTS.join(", ")}`)
-    }
-    return {
-      kind: "claude-cli",
-      model: optString(raw, "model", where) ?? CLAUDE_DEFAULT_MODEL,
-      effort: (effort as ClaudeEffort | undefined) ?? CLAUDE_DEFAULT_EFFORT,
-    }
-  }
-  if (kind === "openai-compat") {
-    const baseUrl = optString(raw, "baseUrl", where)
-    const model = optString(raw, "model", where)
-    // A local server (Ollama, LM Studio) needs no key, so apiKeyEnv is optional.
-    const apiKeyEnv = optString(raw, "apiKeyEnv", where)
-    if (!baseUrl || !model) {
-      throw new Error(`${where}: openai-compat needs "baseUrl" and "model" (and "apiKeyEnv" unless the endpoint is local)`)
-    }
-    return { kind, baseUrl, model, apiKeyEnv, maxSteps: optNumber(raw, "maxSteps", where) }
-  }
-  throw new Error(`${where}: unknown engine kind "${kind}" (expected claude-cli or openai-compat)`)
+  const kind = optString(raw, "kind", where) ?? DEFAULT_ENGINE_KIND
+  const entry = engineKind(kind)
+  if (!entry) throw new Error(`${where}: unknown engine kind "${kind}" (expected ${Object.keys(ENGINE_KINDS).join(" or ")})`)
+  return entry.parse(raw, where)
 }
 
 export function normalizeUserConfig(raw: unknown, where: string): UserConfig {
@@ -137,6 +116,8 @@ export function normalizeUserConfig(raw: unknown, where: string): UserConfig {
   if (maxBytes !== undefined) out.contextMaxBytes = maxBytes
   const fm = optStringArray(raw, "frontendMatch", where)
   if (fm) out.frontendMatch = fm
+  out.generatedMatch = optStringArray(raw, "generatedMatch", where) ?? []
+  out.testMatch = optStringArray(raw, "testMatch", where) ?? []
   if (raw.engine !== undefined) out.engine = normalizeEngineConfig(raw.engine, `${where}: engine`)
   if (raw.engines !== undefined) {
     if (!isRecord(raw.engines)) throw new Error(`${where}: "engines" must be an object`)
@@ -173,15 +154,13 @@ export function resolveEngineConfig(user: UserConfig, flags: EngineFlags): Engin
   let cfg: EngineConfig = user.engine
   if (flags.engine) {
     const preset = user.engines[flags.engine]
+    const kind = engineKind(flags.engine)
     if (preset) cfg = preset
-    else if (flags.engine === "claude-cli") cfg = { ...DEFAULT_ENGINE }
-    else if (flags.engine === "openai-compat") {
-      throw new Error(`--engine openai-compat needs a preset in ~/.prlense/config.json (baseUrl, model, and apiKeyEnv unless local)`)
-    } else {
-      const known = Object.keys(user.engines)
-      throw new Error(
-        `Unknown engine "${flags.engine}". Known: claude-cli${known.length ? ", " + known.join(", ") : ""}`,
-      )
+    else if (kind?.bare) cfg = kind.bare
+    else if (kind) throw new Error(`--engine ${flags.engine} needs ${kind.needs ?? "a preset in ~/.prlense/config.json"}`)
+    else {
+      const known = [...Object.entries(ENGINE_KINDS).filter(([, k]) => k.bare).map(([name]) => name), ...Object.keys(user.engines)]
+      throw new Error(`Unknown engine "${flags.engine}". Known: ${known.join(", ")}`)
     }
   }
   cfg = { ...cfg }

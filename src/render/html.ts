@@ -5,8 +5,8 @@ import {
   type OpenQuestion, type Report, type RiskItem, type ShapeRow, type WhatSection, type WhatSectionKind,
 } from "../report/types.js"
 import { escapeAttr, escapeHtml, jsonForScriptTag, renderInline, safeHref } from "./escape.js"
-import { WIZARD_CSS } from "./wizardCss.js"
-import { WIZARD_JS } from "./wizardJs.js"
+import { PAGE_CSS } from "./pageStyles.js"
+import { PAGE_SCRIPT } from "./pageScript.js"
 
 // The tab icon: a magnifier on prlense's accent, in the dark theme's colors where the
 // browser applies `prefers-color-scheme` inside a favicon. Inlined as a data URI so the
@@ -457,7 +457,7 @@ export function renderReportHtml(report: Report, options: PageOptions = {}): str
 <meta name="color-scheme" content="light dark">
 <title>${escapeHtml(pageTitle(report))} · prlense</title>
 <link rel="icon" type="image/svg+xml" href="${FAVICON_HREF}">
-<style>${WIZARD_CSS}</style>
+<style>${PAGE_CSS}</style>
 </head>
 <body data-lens="all">
 <div class="dropzone" hidden><div>Drop a prlense JSON to view it</div></div>
@@ -466,7 +466,7 @@ ${renderBody(report)}
 </div>
 <script type="application/json" id="prlense-report">${jsonForScriptTag(report)}</script>
 ${viewer}
-<script>${WIZARD_JS}</script>
+<script>${PAGE_SCRIPT}</script>
 </body>
 </html>
 `

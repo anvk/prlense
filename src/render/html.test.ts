@@ -2,8 +2,11 @@ import { test } from "node:test"
 import assert from "node:assert/strict"
 import { renderBody, renderReportHtml } from "./html.js"
 import { decorateLinks } from "../report/links.js"
-import { isReport, reportProblem } from "../report/compat.js"
+import { reportProblem } from "../report/compat.js"
 import type { Report } from "../report/types.js"
+import { AGENT_OUTPUT_SCHEMA } from "../report/schema.js"
+import { PAGE_SCRIPT } from "./pageScript.js"
+import { checkSchema, type Schema } from "../report/schemaCheck.js"
 
 const report: Report = {
   schemaVersion: 4,
@@ -96,7 +99,7 @@ test("renderReportHtml produces a self-contained six-step page with escaped cont
 // render. It runs in a browser, so it must not need anything from node.
 test("a saved report round-trips through the viewer's load path", () => {
   const onDisk = JSON.parse(JSON.stringify(decorateLinks(JSON.parse(JSON.stringify(report)) as Report))) as unknown
-  assert.equal(isReport(onDisk), true)
+  assert.equal(reportProblem(onDisk), null)
   const body = renderBody(onDisk as Report)
   assert.equal((body.match(/<section class="step"/g) ?? []).length, 6)
   assert.ok(body.includes("Create &lt;the&gt; order"))
@@ -104,10 +107,10 @@ test("a saved report round-trips through the viewer's load path", () => {
 })
 
 test("the viewer's load path rejects anything that is not a prlense report", () => {
-  assert.equal(isReport({}), false)
-  assert.equal(isReport({ schemaVersion: 99, pr: {}, why: {}, details: {} }), false)
-  assert.equal(isReport(null), false)
-  assert.equal(isReport([1, 2, 3]), false)
+  assert.notEqual(reportProblem({}), null)
+  assert.notEqual(reportProblem({ schemaVersion: 99, pr: {}, why: {}, details: {} }), null)
+  assert.notEqual(reportProblem(null), null)
+  assert.notEqual(reportProblem([1, 2, 3]), null)
 })
 
 test("a report from another version says which way to go", () => {
@@ -115,4 +118,13 @@ test("a report from another version says which way to go", () => {
   assert.match(reportProblem({ ...shell, schemaVersion: 3 }) ?? "", /older prlense.*prlense explain/)
   assert.match(reportProblem({ ...shell, schemaVersion: 99 }) ?? "", /newer prlense.*prlense update/)
   assert.equal(reportProblem({ ...shell, schemaVersion: 4 }), null)
+})
+
+test("the sample report's model output fits the schema the model is given", () => {
+  const { why, what, model, functions, details, review, coverage } = report
+  assert.deepEqual(checkSchema(AGENT_OUTPUT_SCHEMA as Schema, JSON.parse(JSON.stringify({ why, what, model, functions, details, review, coverage }))), [])
+})
+
+test("the page script is valid JavaScript", () => {
+  assert.doesNotThrow(() => new Function(PAGE_SCRIPT))
 })
