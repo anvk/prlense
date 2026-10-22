@@ -13,11 +13,26 @@ const report: Report = {
   generatedAt: "2026-09-23T10:00:00.000Z",
   tool: { name: "prlense", version: "0.1.0", engine: "claude-cli", model: "claude-opus-5", durationMs: 374000 },
   pr: {
-    number: 482, slug: "acme/shop", url: "https://github.com/acme/shop/pull/482", title: "Create <the> order", author: "someone",
-    state: "MERGED", isDraft: false, baseRefName: "main", headRefName: "someone/x", baseSha: "b".repeat(40), headSha: "h".repeat(40),
-    additions: 211, deletions: 199, changedFiles: 17, headRepoSlug: null,
+    number: 482,
+    slug: "acme/shop",
+    url: "https://github.com/acme/shop/pull/482",
+    title: "Create <the> order",
+    author: "someone",
+    state: "MERGED",
+    isDraft: false,
+    baseRefName: "main",
+    headRefName: "someone/x",
+    baseSha: "b".repeat(40),
+    headSha: "h".repeat(40),
+    additions: 211,
+    deletions: 199,
+    changedFiles: 17,
+    headRepoSlug: null,
   },
-  why: { paragraphs: ["Because `<b>` broke."], references: [{ label: "ABC-541", kind: "ticket", url: "https://x.atlassian.net/browse/ABC-541" }] },
+  why: {
+    paragraphs: ["Because `<b>` broke."],
+    references: [{ label: "ABC-541", kind: "ticket", url: "https://x.atlassian.net/browse/ABC-541" }],
+  },
   what: {
     lead: "Price lookup moved to the server.",
     sections: [
@@ -29,8 +44,14 @@ const report: Report = {
     summary: "Contract change.",
     changes: [
       {
-        group: "contract", kind: "api-contract", name: "POST /x", change: "modified", description: "d",
-        attention: true, risk: "breaking", locations: [{ path: "go/a.go", line: 1 }],
+        group: "contract",
+        kind: "api-contract",
+        name: "POST /x",
+        change: "modified",
+        description: "d",
+        attention: true,
+        risk: "breaking",
+        locations: [{ path: "go/a.go", line: 1 }],
         shape: [
           { name: "productId", type: "uuid", change: "removed" },
           { name: "variantId", type: "uuid", keys: "required", change: "added" },
@@ -38,14 +59,42 @@ const report: Report = {
         ],
       },
       {
-        group: "storage", kind: "table", name: "order_invoices", change: "added", description: "new table",
-        locations: [{ path: "go/a.go", line: 9 }], indexes: ["(org_id, created_at desc)"], relations: ["order_id -> orders.id, cascade"],
+        group: "storage",
+        kind: "table",
+        name: "order_invoices",
+        change: "added",
+        description: "new table",
+        locations: [{ path: "go/a.go", line: 9 }],
+        indexes: ["(org_id, created_at desc)"],
+        relations: ["order_id -> orders.id, cascade"],
         shape: [{ name: "id", type: "uuid", keys: "PK", change: "added" }],
       },
     ],
   },
-  functions: { groups: [{ area: "go", items: [{ name: "F", kind: "function", change: "modified", summary: "s", location: { path: "go/a.go", line: 2 }, detailIds: ["d1"] }] }] },
-  details: { changes: [{ id: "d1", title: "T", files: [{ path: "go/a.go", line: 2 }], before: "old", after: "new", explanation: ["why"], callers: ["handler.go:5"], unverified: true }] },
+  functions: {
+    groups: [
+      {
+        area: "go",
+        items: [
+          { name: "F", kind: "function", change: "modified", summary: "s", location: { path: "go/a.go", line: 2 }, detailIds: ["d1"] },
+        ],
+      },
+    ],
+  },
+  details: {
+    changes: [
+      {
+        id: "d1",
+        title: "T",
+        files: [{ path: "go/a.go", line: 2 }],
+        before: "old",
+        after: "new",
+        explanation: ["why"],
+        callers: ["handler.go:5"],
+        unverified: true,
+      },
+    ],
+  },
   review: {
     risks: [
       { kind: "code", title: "Breaking body", consequence: "Old clients get 400.", source: { modelChange: "POST /x" } },
@@ -54,7 +103,13 @@ const report: Report = {
     questions: [{ question: "Why RESTRICT on file_id?", context: "Every other FK cascades.", source: { detailId: "d1" } }],
     glossary: [{ term: "SKU", meaning: "One sellable product variant, such as a shirt in one size." }],
   },
-  coverage: { filesTraced: ["go/a.go"], filesSkippedGenerated: ["openapi.yaml"], filesSkippedTests: [], filesUntraced: [{ path: "x", reason: "too big" }], notes: ["n"] },
+  coverage: {
+    filesTraced: ["go/a.go"],
+    filesSkippedGenerated: ["openapi.yaml"],
+    filesSkippedTests: [],
+    filesUntraced: [{ path: "x", reason: "too big" }],
+    notes: ["n"],
+  },
   sources: [{ kind: "repo-instructions", source: "CLAUDE.md", title: "CLAUDE.md" }],
   lenses: { frontendMatch: ["ui/**"] },
 }
@@ -73,7 +128,7 @@ test("renderReportHtml produces a self-contained six-step page with escaped cont
   assert.ok(html.includes(`id="detail-d1"`))
   assert.equal((html.match(/class="sec" data-kind=/g) ?? []).length, 2)
   assert.ok(html.includes('data-kind="architecture"'))
-  assert.ok(html.includes("<svg viewBox=\"0 0 24 24\""))
+  assert.ok(html.includes('<svg viewBox="0 0 24 24"'))
   // Model step: grouped, storage before contract, with shape diagrams and an attention callout.
   assert.ok(html.indexOf('data-group="storage"') < html.indexOf('data-group="contract"'))
   assert.equal((html.match(/<dl class="cols">/g) ?? []).length, 2)
@@ -84,7 +139,7 @@ test("renderReportHtml produces a self-contained six-step page with escaped cont
   assert.ok(html.includes("Review notes"))
   assert.ok(html.includes("In the code") && html.includes("At deploy"))
   assert.ok(html.includes("Why RESTRICT on file_id?"))
-  assert.ok(html.includes("<dl class=\"glossary\">"))
+  assert.ok(html.includes('<dl class="glossary">'))
   assert.equal((html.match(/data-lens-pick=/g) ?? []).length, 4)
   assert.equal(html.includes("Operations"), false)
   assert.ok(html.includes('data-kind="ui" data-lens="product frontend"'))
@@ -92,7 +147,10 @@ test("renderReportHtml produces a self-contained six-step page with escaped cont
   assert.ok(/<div class="card" id="detail-d1" data-lens="backend">/.test(html))
   assert.equal(html.includes("</script><script>alert"), false)
   const externalHttp = html.match(/https?:\/\/[^"'\s<]+/g) ?? []
-  assert.ok(externalHttp.every((u) => u.startsWith("https://github.com/") || u.includes(".atlassian.net/")), externalHttp.join("\n"))
+  assert.ok(
+    externalHttp.every((u) => u.startsWith("https://github.com/") || u.includes(".atlassian.net/")),
+    externalHttp.join("\n"),
+  )
 })
 
 // The path the in-page viewer takes when someone drops a shared JSON on it: parse, accept,
@@ -122,7 +180,10 @@ test("a report from another version says which way to go", () => {
 
 test("the sample report's model output fits the schema the model is given", () => {
   const { why, what, model, functions, details, review, coverage } = report
-  assert.deepEqual(checkSchema(AGENT_OUTPUT_SCHEMA as Schema, JSON.parse(JSON.stringify({ why, what, model, functions, details, review, coverage }))), [])
+  assert.deepEqual(
+    checkSchema(AGENT_OUTPUT_SCHEMA as Schema, JSON.parse(JSON.stringify({ why, what, model, functions, details, review, coverage }))),
+    [],
+  )
 })
 
 test("the page script is valid JavaScript", () => {

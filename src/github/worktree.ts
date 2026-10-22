@@ -77,14 +77,19 @@ export async function withPrWorktree<T>(args: WorktreeArgs, fn: (wt: PrWorktree)
     // Base branch may be deleted after merge; fetch the head alone and fall back to the remote HEAD.
     git(["fetch", "--no-tags", remote.name, `pull/${pr.number}/head:${tmpRef}`])
     const head = tryRun("git", ["rev-parse", "--verify", `${remote.name}/HEAD`], { cwd: repoRoot })
-    if (head.status !== 0) throw new Error(`Could not fetch base branch ${pr.baseRefName} from ${remote.name}, and ${remote.name}/HEAD is unknown.\n${fetched.stderr}`)
+    if (head.status !== 0)
+      throw new Error(
+        `Could not fetch base branch ${pr.baseRefName} from ${remote.name}, and ${remote.name}/HEAD is unknown.\n${fetched.stderr}`,
+      )
     baseRef = `${remote.name}/HEAD`
     warn(`Base branch ${pr.baseRefName} is gone on ${remote.name}; using ${baseRef} for the merge base.`)
   }
 
   const headSha = git(["rev-parse", tmpRef]).stdout
   if (pr.headRefOid && headSha !== pr.headRefOid) {
-    warn(`PR head moved while fetching (GitHub says ${pr.headRefOid.slice(0, 10)}, fetched ${headSha.slice(0, 10)}). Using the fetched commit.`)
+    warn(
+      `PR head moved while fetching (GitHub says ${pr.headRefOid.slice(0, 10)}, fetched ${headSha.slice(0, 10)}). Using the fetched commit.`,
+    )
   }
   const baseSha = resolveBaseSha(repoRoot, headSha, baseRef, pr.mergeCommitSha)
 

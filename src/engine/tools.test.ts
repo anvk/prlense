@@ -13,7 +13,12 @@ function checkout(): { root: string; outside: string } {
   fs.mkdirSync(path.join(root, "src"), { recursive: true })
   fs.writeFileSync(path.join(root, "src", "orders.ts"), "export function placeOrder() {\n  return 1\n}\n")
   const env = { ...process.env, GIT_AUTHOR_NAME: "t", GIT_AUTHOR_EMAIL: "t@t", GIT_COMMITTER_NAME: "t", GIT_COMMITTER_EMAIL: "t@t" }
-  for (const args of [["init", "-q"], ["add", "."], ["commit", "-qm", "one"]]) spawnSync("git", args, { cwd: root, env })
+  for (const args of [
+    ["init", "-q"],
+    ["add", "."],
+    ["commit", "-qm", "one"],
+  ])
+    spawnSync("git", args, { cwd: root, env })
   const outside = path.join(parent, "secret.txt")
   fs.writeFileSync(outside, "do not read")
   return { root, outside }
@@ -30,9 +35,15 @@ test("paths cannot leave the checkout, not even through a symlink", () => {
 
 test("read_file numbers lines and pages through long files", () => {
   const { root } = checkout()
-  assert.equal(runWorkspaceTool(root, "read_file", { path: "src/orders.ts", limit: 1 }).split("\n")[0], "     1\texport function placeOrder() {")
+  assert.equal(
+    runWorkspaceTool(root, "read_file", { path: "src/orders.ts", limit: 1 }).split("\n")[0],
+    "     1\texport function placeOrder() {",
+  )
   assert.match(runWorkspaceTool(root, "read_file", { path: "src/orders.ts", limit: 1 }), /read on with offset 2/)
-  assert.equal(runWorkspaceTool(root, "read_file", { path: "src/orders.ts", offset: 2, limit: 1 }), "     2\t  return 1\n… 1 more line(s); read on with offset 3")
+  assert.equal(
+    runWorkspaceTool(root, "read_file", { path: "src/orders.ts", offset: 2, limit: 1 }),
+    "     2\t  return 1\n… 1 more line(s); read on with offset 3",
+  )
   assert.equal(runWorkspaceTool(root, "read_file", { path: "src/orders.ts", offset: 3 }), "     3\t}")
 })
 

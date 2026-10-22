@@ -13,7 +13,14 @@ function request(root: string, changed: string[], includeRules = false): Context
     pr: {} as ContextRequest["pr"],
     changedFiles: changed.map((p) => ({ path: p }) as ContextRequest["changedFiles"][number]),
     ticketRefs: [],
-    options: { contextFiles: [], includeRules, skipGenerated: [], testMatch: [], contextMaxBytes: 1e6, frontendMatch: [] } as ContextRequest["options"],
+    options: {
+      contextFiles: [],
+      includeRules,
+      skipGenerated: [],
+      testMatch: [],
+      contextMaxBytes: 1e6,
+      frontendMatch: [],
+    } as ContextRequest["options"],
   }
 }
 
@@ -24,7 +31,13 @@ test("AGENTS.md and CLAUDE.md are both read, and a symlink between them only onc
   fs.symlinkSync("AGENTS.md", path.join(root, "CLAUDE.md"))
   fs.writeFileSync(path.join(root, "api", "CLAUDE.md"), "api claude")
   const docs = await new RepoFilesContextProvider().collect(request(root, ["api/orders.ts"]))
-  assert.deepEqual(docs.map((d) => [d.source, d.content]), [["AGENTS.md", "root agents"], ["api/CLAUDE.md", "api claude"]])
+  assert.deepEqual(
+    docs.map((d) => [d.source, d.content]),
+    [
+      ["AGENTS.md", "root agents"],
+      ["api/CLAUDE.md", "api claude"],
+    ],
+  )
 })
 
 test("--with-rules reads both Claude and Cursor rule folders", async () => {
@@ -34,5 +47,8 @@ test("--with-rules reads both Claude and Cursor rule folders", async () => {
   fs.writeFileSync(path.join(root, ".claude", "rules", "style.md"), "a")
   fs.writeFileSync(path.join(root, ".cursor", "rules", "api.mdc"), "b")
   const docs = await new RepoFilesContextProvider().collect(request(root, ["x.ts"], true))
-  assert.deepEqual(docs.map((d) => d.source), [".claude/rules/style.md", ".cursor/rules/api.mdc"])
+  assert.deepEqual(
+    docs.map((d) => d.source),
+    [".claude/rules/style.md", ".cursor/rules/api.mdc"],
+  )
 })

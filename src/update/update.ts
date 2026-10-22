@@ -14,9 +14,7 @@ export function runUpdateCommand(options: { check?: boolean }): void {
     return
   }
   if (!info.managed) {
-    console.error(
-      pc.yellow(`prlense is linked from ${info.packageRoot}, which is a developer checkout, not the managed install.`),
-    )
+    console.error(pc.yellow(`prlense is linked from ${info.packageRoot}, which is a developer checkout, not the managed install.`))
     console.error(pc.dim("Self-update stays off there. Build it yourself, or re-link the managed install."))
     process.exitCode = 1
     return

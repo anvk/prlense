@@ -15,7 +15,9 @@ export function runRenderCommand(jsonPath: string, opts: { out?: string; open: b
   try {
     raw = JSON.parse(fs.readFileSync(jsonPath, "utf8"))
   } catch (error) {
-    throw new Error(`Cannot open ${jsonPath}: it is not valid JSON (${error instanceof Error ? error.message : String(error)}).`)
+    throw new Error(`Cannot open ${jsonPath}: it is not valid JSON (${error instanceof Error ? error.message : String(error)}).`, {
+      cause: error,
+    })
   }
   const problem = reportProblem(raw)
   if (problem) throw new Error(`Cannot open ${jsonPath}: ${problem}.`)

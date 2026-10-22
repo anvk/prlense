@@ -15,7 +15,6 @@ import { isRecord } from "../core/guards.js"
 
 const MAX_ERRORS = 25
 
-
 function typeMatches(type: NonNullable<Schema["type"]>, value: unknown): boolean {
   switch (type) {
     case "object":

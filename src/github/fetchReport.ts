@@ -35,7 +35,7 @@ export async function fetchReport(url: string): Promise<Report> {
       redirect: "follow",
     })
   } catch (error) {
-    throw new Error(`Could not fetch ${url}: ${errorMessage(error)}`)
+    throw new Error(`Could not fetch ${url}: ${errorMessage(error)}`, { cause: error })
   }
   if (!response.ok) {
     const hint =

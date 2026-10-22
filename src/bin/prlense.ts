@@ -74,9 +74,7 @@ program
   .option("--timestamp", "Add a timestamp to the report file names instead of overwriting")
   .option("--yes", "Run even when the PR is very large")
   .option("--verbose", "Print one line per tool call while the model works")
-  .action((target: string, flags: ExplainFlags) =>
-    runExplainCommand(target, { ...flags, version: describeInstalledVersion() }),
-  )
+  .action((target: string, flags: ExplainFlags) => runExplainCommand(target, { ...flags, version: describeInstalledVersion() }))
 
 program
   .command("render")

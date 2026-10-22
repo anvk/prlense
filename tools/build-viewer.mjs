@@ -4,16 +4,16 @@
 // sha256 anchoring has already happened.
 //
 // The result is inlined into every page, which is what keeps a report a single file.
-import { build } from "esbuild";
-import fs from "node:fs";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { build } from "esbuild"
+import fs from "node:fs"
+import path from "node:path"
+import { fileURLToPath } from "node:url"
 
-const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const outDir = process.env.PRLENSE_BUILD_OUTDIR || path.join(root, "dist");
-const outfile = path.join(outDir, "render", "viewer.js");
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..")
+const outDir = process.env.PRLENSE_BUILD_OUTDIR || path.join(root, "dist")
+const outfile = path.join(outDir, "render", "viewer.js")
 
-fs.mkdirSync(path.dirname(outfile), { recursive: true });
+fs.mkdirSync(path.dirname(outfile), { recursive: true })
 await build({
   entryPoints: [path.join(root, "src", "render", "browser.ts")],
   outfile,
@@ -23,6 +23,6 @@ await build({
   platform: "browser",
   target: ["es2020"],
   legalComments: "none",
-});
-const kb = (fs.statSync(outfile).size / 1024).toFixed(1);
-console.log(`viewer: built ${path.relative(root, outfile)} (${kb} KB)`);
+})
+const kb = (fs.statSync(outfile).size / 1024).toFixed(1)
+console.log(`viewer: built ${path.relative(root, outfile)} (${kb} KB)`)

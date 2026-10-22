@@ -3,7 +3,6 @@
 import { REPORT_SCHEMA_VERSION } from "./types.js"
 import { isRecord } from "../core/guards.js"
 
-
 // Why `v` cannot be shown as a report, or null when it can. Only the current format is read:
 // a report from another version has to be generated again by this one.
 export function reportProblem(v: unknown): string | null {

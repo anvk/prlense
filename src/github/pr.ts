@@ -91,9 +91,24 @@ export interface PrMeta {
 }
 
 const GH_FIELDS = [
-  "number", "url", "title", "body", "author", "state", "isDraft", "baseRefName", "headRefName",
-  "headRefOid", "headRepository", "headRepositoryOwner", "additions", "deletions", "changedFiles",
-  "createdAt", "mergedAt", "mergeCommit",
+  "number",
+  "url",
+  "title",
+  "body",
+  "author",
+  "state",
+  "isDraft",
+  "baseRefName",
+  "headRefName",
+  "headRefOid",
+  "headRepository",
+  "headRepositoryOwner",
+  "additions",
+  "deletions",
+  "changedFiles",
+  "createdAt",
+  "mergedAt",
+  "mergeCommit",
 ]
 
 export function resolvePr(remote: Remote, ref: PrRef): PrMeta {

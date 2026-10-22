@@ -70,9 +70,12 @@ export class RepoFilesContextProvider implements ContextProvider {
       for (const dir of dirs) {
         for (const ruleDir of RULE_DIRS) {
           const rulesDir = path.join(root, dir, ruleDir)
-          let names: string[] = []
+          let names: string[]
           try {
-            names = fs.readdirSync(rulesDir).filter((n) => n.endsWith(".md") || n.endsWith(".mdc")).sort()
+            names = fs
+              .readdirSync(rulesDir)
+              .filter((n) => n.endsWith(".md") || n.endsWith(".mdc"))
+              .sort()
           } catch {
             continue
           }

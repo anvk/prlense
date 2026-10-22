@@ -34,8 +34,7 @@ export function resolveExplainTarget(input: string): ExplainTarget {
   if (isHttpUrl(value)) return { kind: "url", url: value }
 
   throw new Error(
-    `Could not make sense of "${input}".\n` +
-      "Give a PR number, a GitHub PR URL, a path to a prlense report JSON, or a link to one.",
+    `Could not make sense of "${input}".\n` + "Give a PR number, a GitHub PR URL, a path to a prlense report JSON, or a link to one.",
   )
 }
 

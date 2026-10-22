@@ -1,6 +1,16 @@
 // The JSON schema handed to the engine for structured output. Its own module so the browser
 // viewer, which imports the report types, does not carry it.
-import { FUNCTION_CHANGES, FUNCTION_KINDS, MODEL_CHANGES, MODEL_CHANGE_KINDS, MODEL_GROUPS, REFERENCE_KINDS, RISK_KINDS, ROW_CHANGES, WHAT_SECTION_KINDS } from "./types.js"
+import {
+  FUNCTION_CHANGES,
+  FUNCTION_KINDS,
+  MODEL_CHANGES,
+  MODEL_CHANGE_KINDS,
+  MODEL_GROUPS,
+  REFERENCE_KINDS,
+  RISK_KINDS,
+  ROW_CHANGES,
+  WHAT_SECTION_KINDS,
+} from "./types.js"
 
 const fileRefSchema = {
   type: "object",
