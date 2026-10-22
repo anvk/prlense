@@ -86,7 +86,13 @@ export function applySemanticChecks(out: AgentOutput, ctx: SemanticContext): { o
   for (const m of out.model.changes) {
     if (!m.attention && !m.risk) continue
     if (out.review.risks.some((r) => r.source?.modelChange === m.name)) continue
-    out.review.risks.push({ kind: "code", title: m.name, consequence: m.risk ?? m.description, source: { modelChange: m.name }, unverified: m.unverified })
+    out.review.risks.push({
+      kind: "code",
+      title: m.name,
+      consequence: m.risk ?? m.description,
+      source: { modelChange: m.name },
+      unverified: m.unverified,
+    })
     notes.push(`Added "${m.name}" to the risk list because step 3 flagged it.`)
   }
 
@@ -145,4 +151,3 @@ export function applySemanticChecks(out: AgentOutput, ctx: SemanticContext): { o
 
   return { output: out, notes }
 }
-

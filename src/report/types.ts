@@ -62,7 +62,16 @@ export interface WhatStep {
 }
 
 export const MODEL_CHANGE_KINDS = [
-  "migration", "table", "column", "index", "enum", "type", "schema", "api-contract", "config", "other",
+  "migration",
+  "table",
+  "column",
+  "index",
+  "enum",
+  "type",
+  "schema",
+  "api-contract",
+  "config",
+  "other",
 ] as const
 export type ModelChangeKind = (typeof MODEL_CHANGE_KINDS)[number]
 export const MODEL_CHANGES = ["added", "removed", "modified", "renamed"] as const
@@ -104,9 +113,7 @@ export interface ModelStep {
   changes: ModelChange[]
 }
 
-export const FUNCTION_KINDS = [
-  "function", "method", "handler", "component", "hook", "job", "middleware", "test", "other",
-] as const
+export const FUNCTION_KINDS = ["function", "method", "handler", "component", "hook", "job", "middleware", "test", "other"] as const
 export type FunctionKind = (typeof FUNCTION_KINDS)[number]
 export const FUNCTION_CHANGES = ["added", "removed", "modified", "renamed", "moved"] as const
 

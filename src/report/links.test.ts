@@ -4,14 +4,29 @@ import { blobUrl, diffAnchor, diffUrl } from "./links.js"
 import type { PrHeader } from "./types.js"
 
 const pr: PrHeader = {
-  number: 482, slug: "acme/shop", url: "", title: "", author: "", state: "OPEN", isDraft: false,
-  baseRefName: "main", headRefName: "x", baseSha: "b".repeat(40), headSha: "h".repeat(40),
-  additions: 0, deletions: 0, changedFiles: 0, headRepoSlug: null,
+  number: 482,
+  slug: "acme/shop",
+  url: "",
+  title: "",
+  author: "",
+  state: "OPEN",
+  isDraft: false,
+  baseRefName: "main",
+  headRefName: "x",
+  baseSha: "b".repeat(40),
+  headSha: "h".repeat(40),
+  additions: 0,
+  deletions: 0,
+  changedFiles: 0,
+  headRepoSlug: null,
 }
 
 test("diffAnchor is the sha256 of the path", () => {
   // printf 'go/main.go' | shasum -a 256
-  assert.equal(diffAnchor("go/main.go"), "4dbf1fbe0b6ee4c1b1c7ba5b0a6f7d1a9d0e9a4b3c4c1a8d4a4d7fbbf5a6ebc0".length === 64 ? diffAnchor("go/main.go") : "")
+  assert.equal(
+    diffAnchor("go/main.go"),
+    "4dbf1fbe0b6ee4c1b1c7ba5b0a6f7d1a9d0e9a4b3c4c1a8d4a4d7fbbf5a6ebc0".length === 64 ? diffAnchor("go/main.go") : "",
+  )
   assert.match(diffAnchor("go/main.go"), /^[0-9a-f]{64}$/)
   assert.notEqual(diffAnchor("go/main.go"), diffAnchor("go/main_test.go"))
 })

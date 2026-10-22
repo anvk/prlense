@@ -10,7 +10,10 @@ export interface Remote {
 
 // The host and owner/repo of a remote URL, for github.com and GitHub Enterprise alike.
 export function parseRemoteUrl(url: string): { host: string; slug: string } | null {
-  const trimmed = url.trim().replace(/\/+$/, "").replace(/\.git$/, "")
+  const trimmed = url
+    .trim()
+    .replace(/\/+$/, "")
+    .replace(/\.git$/, "")
   // git@github.com:owner/repo
   let m = /^[\w.-]+@([\w.-]+):([^/\s]+)\/([^/\s]+)$/.exec(trimmed)
   if (m) return { host: m[1].toLowerCase(), slug: `${m[2]}/${m[3]}` }

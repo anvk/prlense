@@ -13,8 +13,26 @@ export interface GuardDecision {
 // `git` (optionally after --no-pager), so global options such as `-c core.pager=…`, which
 // can run any program, never get in.
 const GIT_READ_COMMANDS = new Set([
-  "log", "show", "diff", "grep", "blame", "annotate", "ls-files", "ls-tree", "rev-parse", "rev-list", "cat-file",
-  "status", "shortlog", "describe", "merge-base", "for-each-ref", "show-ref", "name-rev", "diff-tree", "range-diff",
+  "log",
+  "show",
+  "diff",
+  "grep",
+  "blame",
+  "annotate",
+  "ls-files",
+  "ls-tree",
+  "rev-parse",
+  "rev-list",
+  "cat-file",
+  "status",
+  "shortlog",
+  "describe",
+  "merge-base",
+  "for-each-ref",
+  "show-ref",
+  "name-rev",
+  "diff-tree",
+  "range-diff",
 ])
 // Options of those commands that write a file or run another program.
 const GIT_WRITING_OPTIONS = /^(--output(=.*)?|-O.*|--open-files-in-pager(=.*)?|--ext-diff)$/
@@ -35,10 +53,29 @@ const PROGRAMS: Record<string, ArgCheck> = {
   git: checkGit,
   gh: checkGh,
   rg: (args) => (args.some((a) => a.startsWith("--pre")) ? "rg --pre runs another program" : null),
-  sort: (args) => (args.some((a) => a === "--output" || a.startsWith("--output=") || /^-[a-zA-Z]*o/.test(a)) ? "sort -o writes a file" : null),
+  sort: (args) =>
+    args.some((a) => a === "--output" || a.startsWith("--output=") || /^-[a-zA-Z]*o/.test(a)) ? "sort -o writes a file" : null,
   uniq: (args) => (args.filter((a) => !a.startsWith("-")).length > 1 ? "uniq with two files writes the second" : null),
-  grep: none, egrep: none, fgrep: none, ls: none, cat: none, head: none, tail: none, wc: none, cut: none, tr: none,
-  jq: none, echo: none, printf: none, diff: none, file: none, stat: none, basename: none, dirname: none, pwd: none, true: none,
+  grep: none,
+  egrep: none,
+  fgrep: none,
+  ls: none,
+  cat: none,
+  head: none,
+  tail: none,
+  wc: none,
+  cut: none,
+  tr: none,
+  jq: none,
+  echo: none,
+  printf: none,
+  diff: none,
+  file: none,
+  stat: none,
+  basename: none,
+  dirname: none,
+  pwd: none,
+  true: none,
 }
 
 function none(): null {
@@ -62,7 +99,8 @@ function checkGh(args: string[]): string | null {
     if (args.some((a) => /^(-f|-F|--field|--raw-field|--input)/.test(a))) return "gh api with fields sends data to GitHub"
     return null
   }
-  if (!group || !GH_READ_COMMANDS[group]?.has(sub ?? "")) return `gh ${[group, sub].filter(Boolean).join(" ")} is not a read-only gh command`
+  if (!group || !GH_READ_COMMANDS[group]?.has(sub ?? ""))
+    return `gh ${[group, sub].filter(Boolean).join(" ")} is not a read-only gh command`
   if (args.some((a) => a === "--web" || a === "-w")) return "gh --web opens a browser"
   return null
 }
@@ -173,7 +211,7 @@ export function parseCommand(command: string): { segments: string[][] } | { erro
 export async function runBashGuardHook(stdin: NodeJS.ReadableStream, stderr: NodeJS.WritableStream): Promise<number> {
   let raw = ""
   for await (const chunk of stdin) raw += chunk
-  let command = ""
+  let command: string
   try {
     const parsed = JSON.parse(raw) as { tool_input?: { command?: string } }
     command = parsed.tool_input?.command ?? ""

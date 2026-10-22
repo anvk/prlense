@@ -22,7 +22,13 @@ test("tryParsePrRef rejects other inputs", () => {
   assert.equal(tryParsePrRef("abc"), null)
 })
 
-const prWith = (body: string, title = "Tidy up", headRefName = "someone/tidy", url = "https://github.com/acme/shop/pull/1") => ({ body, title, headRefName, slug: "acme/shop", url })
+const prWith = (body: string, title = "Tidy up", headRefName = "someone/tidy", url = "https://github.com/acme/shop/pull/1") => ({
+  body,
+  title,
+  headRefName,
+  slug: "acme/shop",
+  url,
+})
 
 test("extractTicketRefs finds tracker links and closing references once each", () => {
   const body =
@@ -46,8 +52,18 @@ test("a bare key counts only when the branch or the title's start declares it", 
 })
 
 test("GitHub Enterprise PR URLs and issue references keep their host", () => {
-  assert.deepEqual(tryParsePrRef("https://git.acme.dev/shop/web/pull/7/files"), { number: 7, owner: "shop", repo: "web", host: "git.acme.dev" })
-  const pr = prWith("Fixes #3. Also https://git.acme.dev/shop/web/issues/4 and https://github.com/x/y/issues/5.", "t", "b", "https://git.acme.dev/shop/web/pull/7")
+  assert.deepEqual(tryParsePrRef("https://git.acme.dev/shop/web/pull/7/files"), {
+    number: 7,
+    owner: "shop",
+    repo: "web",
+    host: "git.acme.dev",
+  })
+  const pr = prWith(
+    "Fixes #3. Also https://git.acme.dev/shop/web/issues/4 and https://github.com/x/y/issues/5.",
+    "t",
+    "b",
+    "https://git.acme.dev/shop/web/pull/7",
+  )
   assert.deepEqual(extractTicketRefs({ ...pr, slug: "shop/web" }), [
     { key: "shop/web#4", url: "https://git.acme.dev/shop/web/issues/4" },
     { key: "#3", url: "https://git.acme.dev/shop/web/issues/3" },

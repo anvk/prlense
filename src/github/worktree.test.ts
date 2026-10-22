@@ -12,10 +12,15 @@ function makeRepos(opts: { mergeIntoMain?: boolean } = {}): { clone: string; hea
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "prlense-wt-"))
   const src = path.join(root, "src")
   fs.mkdirSync(src)
-  const g = (args: string[], cwd = src) => run("git", args, { cwd, env: { ...process.env, GIT_AUTHOR_NAME: "t", GIT_AUTHOR_EMAIL: "t@t", GIT_COMMITTER_NAME: "t", GIT_COMMITTER_EMAIL: "t@t" } })
+  const g = (args: string[], cwd = src) =>
+    run("git", args, {
+      cwd,
+      env: { ...process.env, GIT_AUTHOR_NAME: "t", GIT_AUTHOR_EMAIL: "t@t", GIT_COMMITTER_NAME: "t", GIT_COMMITTER_EMAIL: "t@t" },
+    })
   g(["init", "-q", "-b", "main"])
   fs.writeFileSync(path.join(src, "a.txt"), "base\n")
-  g(["add", "."]); g(["commit", "-qm", "base"])
+  g(["add", "."])
+  g(["commit", "-qm", "base"])
   const baseSha = g(["rev-parse", "HEAD"]).stdout
   g(["checkout", "-qb", "feature"])
   fs.writeFileSync(path.join(src, "a.txt"), "changed\n")
@@ -27,7 +32,8 @@ function makeRepos(opts: { mergeIntoMain?: boolean } = {}): { clone: string; hea
   let mergeSha: string | undefined
   if (opts.mergeIntoMain) {
     fs.writeFileSync(path.join(src, "b.txt"), "other work\n")
-    g(["add", "."]); g(["commit", "-qm", "other work on main"])
+    g(["add", "."])
+    g(["commit", "-qm", "other work on main"])
     g(["merge", "-q", "--no-ff", "-m", "Merge pull request #1", "feature"])
     mergeSha = g(["rev-parse", "HEAD"]).stdout
   }
@@ -40,9 +46,24 @@ function makeRepos(opts: { mergeIntoMain?: boolean } = {}): { clone: string; hea
 }
 
 const pr = (headSha: string): PrMeta => ({
-  number: 1, slug: "o/r", url: "", title: "t", body: "", author: "a", state: "OPEN", isDraft: false,
-  baseRefName: "main", headRefName: "feature", headRefOid: headSha, headRepoSlug: null,
-  additions: 1, deletions: 1, changedFiles: 1, createdAt: "", mergedAt: null, mergeCommitSha: null,
+  number: 1,
+  slug: "o/r",
+  url: "",
+  title: "t",
+  body: "",
+  author: "a",
+  state: "OPEN",
+  isDraft: false,
+  baseRefName: "main",
+  headRefName: "feature",
+  headRefOid: headSha,
+  headRepoSlug: null,
+  additions: 1,
+  deletions: 1,
+  changedFiles: 1,
+  createdAt: "",
+  mergedAt: null,
+  mergeCommitSha: null,
 })
 
 test("withPrWorktree checks out the PR head, computes the merge base, and cleans up even when fn throws", async () => {

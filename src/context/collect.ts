@@ -5,11 +5,7 @@ export function createProviders(): ContextProvider[] {
   return [new RepoFilesContextProvider()]
 }
 
-export async function collectContext(
-  providers: ContextProvider[],
-  req: ContextRequest,
-  maxBytes: number,
-): Promise<ContextBundle> {
+export async function collectContext(providers: ContextProvider[], req: ContextRequest, maxBytes: number): Promise<ContextBundle> {
   const all: ContextDoc[] = []
   for (const p of providers) all.push(...(await p.collect(req)))
   all.sort((a, b) => a.priority - b.priority || a.source.localeCompare(b.source))
@@ -27,7 +23,10 @@ export async function collectContext(
     const room = maxBytes - total
     if (room > 2000) {
       // The budget is in bytes, so the cut is too; a character split at the edge is dropped.
-      const cut = Buffer.from(d.content, "utf8").subarray(0, room).toString("utf8").replace(/\uFFFD$/, "")
+      const cut = Buffer.from(d.content, "utf8")
+        .subarray(0, room)
+        .toString("utf8")
+        .replace(/\uFFFD$/, "")
       docs.push({ ...d, content: cut + "\n[... truncated to fit the context budget]" })
       total = maxBytes
     }

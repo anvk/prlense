@@ -1,8 +1,20 @@
 import { matchesAnyGlob } from "../core/glob.js"
 import {
-  LENSES, MODEL_GROUPS,
-  type DetailedChange, type FileRef, type FunctionChange, type FunctionGroup, type Lens, type ModelChange, type ModelGroup,
-  type OpenQuestion, type Report, type RiskItem, type ShapeRow, type WhatSection, type WhatSectionKind,
+  LENSES,
+  MODEL_GROUPS,
+  type DetailedChange,
+  type FileRef,
+  type FunctionChange,
+  type FunctionGroup,
+  type Lens,
+  type ModelChange,
+  type ModelGroup,
+  type OpenQuestion,
+  type Report,
+  type RiskItem,
+  type ShapeRow,
+  type WhatSection,
+  type WhatSectionKind,
 } from "../report/types.js"
 import { escapeAttr, escapeHtml, jsonForScriptTag, renderInline, safeHref } from "./escape.js"
 import { PAGE_CSS } from "./pageStyles.js"
@@ -107,7 +119,9 @@ function renderWhy(r: Report): string {
   const refs = r.why.references
     .map((ref) => {
       const href = safeHref(ref.url)
-      const label = href ? `<a href="${escapeAttr(href)}" target="_blank" rel="noopener">${escapeHtml(ref.label)}</a>` : escapeHtml(ref.label)
+      const label = href
+        ? `<a href="${escapeAttr(href)}" target="_blank" rel="noopener">${escapeHtml(ref.label)}</a>`
+        : escapeHtml(ref.label)
       return `<li><span class="tag">${escapeHtml(ref.kind)}</span> ${label}${ref.note ? ` — ${renderInline(ref.note)}` : ""}</li>`
     })
     .join("")
@@ -118,15 +132,22 @@ function renderWhy(r: Report): string {
 
 const SECTION_ICONS: Record<WhatSectionKind, string> = {
   architecture: '<path d="M12 2 2 7l10 5 10-5-10-5Z"/><path d="m2 12 10 5 10-5"/><path d="m2 17 10 5 10-5"/>',
-  backend: '<rect x="2" y="4" width="20" height="7" rx="2"/><rect x="2" y="14" width="20" height="7" rx="2"/><path d="M6 7.5h.01M6 17.5h.01"/>',
+  backend:
+    '<rect x="2" y="4" width="20" height="7" rx="2"/><rect x="2" y="14" width="20" height="7" rx="2"/><path d="M6 7.5h.01M6 17.5h.01"/>',
   ui: '<rect x="2" y="4" width="20" height="13" rx="2"/><path d="M2 9h20M8 21h8"/>',
   tools: '<path d="m5 17 5-5-5-5"/><path d="M12 19h8"/>',
-  models: '<ellipse cx="12" cy="6" rx="8" ry="3"/><path d="M4 6v12c0 1.7 3.6 3 8 3s8-1.3 8-3V6"/><path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/>',
+  models:
+    '<ellipse cx="12" cy="6" rx="8" ry="3"/><path d="M4 6v12c0 1.7 3.6 3 8 3s8-1.3 8-3V6"/><path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/>',
   other: '<circle cx="12" cy="12" r="9"/><path d="M12 8v4M12 16h.01"/>',
 }
 
 const SECTION_FALLBACK_TITLES: Record<WhatSectionKind, string> = {
-  architecture: "Architecture", backend: "Backend", ui: "UI", tools: "Tools", models: "Models", other: "Other",
+  architecture: "Architecture",
+  backend: "Backend",
+  ui: "UI",
+  tools: "Tools",
+  models: "Models",
+  other: "Other",
 }
 
 function renderSection(sec: WhatSection): string {
@@ -148,7 +169,10 @@ function renderWhat(r: Report): string {
 // ---------- step 3 ----------
 
 const MODEL_GROUP_TITLES: Record<ModelGroup, string> = {
-  storage: "Persistent storage", domain: "Domain models", contract: "Contracts and events", other: "Other",
+  storage: "Persistent storage",
+  domain: "Domain models",
+  contract: "Contracts and events",
+  other: "Other",
 }
 
 const MODEL_GROUP_SUBTITLES: Record<ModelGroup, string> = {
@@ -203,7 +227,10 @@ function renderModel(r: Report, ctx: RenderCtx): string {
   const flagged = changes.filter((m) => m.attention)
   const callout = flagged.length
     ? `<div class="attention-box"><b>Look at these first</b><ul>${flagged
-        .map((m) => `<li><a href="#${modelAnchor(ctx.modelIndex.get(m.name) ?? 0)}">${escapeHtml(m.name)}</a> — ${renderInline(m.risk ?? m.description)}</li>`)
+        .map(
+          (m) =>
+            `<li><a href="#${modelAnchor(ctx.modelIndex.get(m.name) ?? 0)}">${escapeHtml(m.name)}</a> — ${renderInline(m.risk ?? m.description)}</li>`,
+        )
         .join("")}</ul></div>`
     : ""
 
@@ -235,7 +262,9 @@ function renderFunctionRow(f: FunctionChange, ctx: RenderCtx): string {
     diff ? `<a href="${escapeAttr(diff)}" target="_blank" rel="noopener">diff</a>` : "",
     blob ? `<a href="${escapeAttr(blob)}" target="_blank" rel="noopener">file</a>` : "",
     details,
-  ].filter(Boolean).join(" · ")
+  ]
+    .filter(Boolean)
+    .join(" · ")
   return `<tr${lensAttr(lensesForPaths([loc.path], ctx))}>
 <td class="name"><span class="tag ${escapeAttr(f.change)}">${escapeHtml(f.change)}</span><br>${escapeHtml(f.name)}<br><span class="kbd">${escapeHtml(f.kind)}</span></td>
 <td>${renderInline(f.summary)}<br><span class="kbd">${escapeHtml(loc.path)}${loc.line !== undefined ? `:${loc.line}` : ""}</span></td>
@@ -244,7 +273,10 @@ function renderFunctionRow(f: FunctionChange, ctx: RenderCtx): string {
 }
 
 function renderFunctionGroup(g: FunctionGroup, ctx: RenderCtx): string {
-  const groupLenses = lensesForPaths(g.items.map((it) => it.location.path), ctx)
+  const groupLenses = lensesForPaths(
+    g.items.map((it) => it.location.path),
+    ctx,
+  )
   return `<div class="fgroup"${lensAttr(groupLenses)}><h3>${escapeHtml(g.area)}</h3><table class="fn"><tbody>${g.items.map((it) => renderFunctionRow(it, ctx)).join("")}</tbody></table></div>`
 }
 
@@ -256,9 +288,10 @@ function renderFunctions(r: Report, ctx: RenderCtx): string {
 // ---------- step 5 ----------
 
 function renderDetail(d: DetailedChange, ctx: RenderCtx): string {
-  const ba = d.before || d.after
-    ? `<div class="ba">${d.before ? `<div><b>Before</b>${renderInline(d.before)}</div>` : ""}<div class="after"><b>After</b>${renderInline(d.after)}</div></div>`
-    : ""
+  const ba =
+    d.before || d.after
+      ? `<div class="ba">${d.before ? `<div><b>Before</b>${renderInline(d.before)}</div>` : ""}<div class="after"><b>After</b>${renderInline(d.after)}</div></div>`
+      : ""
   const paths = [...d.files.map((f) => f.path), ...(d.tests ?? []).map((f) => f.path)]
   return `<div class="card" id="${detailAnchor(d.id)}"${lensAttr(lensesForPaths(paths, ctx))}>
 <h4>${escapeHtml(d.id)} · ${renderInline(d.title)}${unverifiedBadge(d.unverified)}</h4>
@@ -294,7 +327,11 @@ function riskLenses(r: Report, ctx: RenderCtx, risk: RiskItem): Lens[] {
   const src = risk.source
   if (src?.detailId) {
     const d = r.details.changes.find((x) => x.id === src.detailId)
-    if (d) lensesForPaths(d.files.map((f) => f.path), ctx).forEach((l) => lenses.add(l))
+    if (d)
+      lensesForPaths(
+        d.files.map((f) => f.path),
+        ctx,
+      ).forEach((l) => lenses.add(l))
   } else if (src?.modelChange !== undefined) {
     const m = r.model.changes.find((x) => x.name === src.modelChange)
     if (m) MODEL_GROUP_LENSES[m.group].forEach((l) => lenses.add(l))
@@ -332,8 +369,14 @@ function renderReview(r: Report, ctx: RenderCtx): string {
   const risks =
     rv.risks.length === 0
       ? `<p class="gsub">No risks were recorded for this change.</p>`
-      : riskGroup("In the code", "What will happen once this code runs. Facts with consequences, not verdicts.", code, ["backend", "frontend"]) +
-        riskGroup("At deploy", "Migrations, flags, backfills and anything in flight that the new code will miss.", deploy, ["backend", "frontend"])
+      : riskGroup("In the code", "What will happen once this code runs. Facts with consequences, not verdicts.", code, [
+          "backend",
+          "frontend",
+        ]) +
+        riskGroup("At deploy", "Migrations, flags, backfills and anything in flight that the new code will miss.", deploy, [
+          "backend",
+          "frontend",
+        ])
   const questions =
     rv.questions.length === 0
       ? `<p class="gsub">The code answered everything a careful reader would ask.</p>`
@@ -354,11 +397,15 @@ function renderReview(r: Report, ctx: RenderCtx): string {
 function renderCoverage(r: Report): string {
   const c = r.coverage
   const list = (label: string, items: string[]) =>
-    items.length ? `<details><summary>${escapeHtml(label)} (${items.length})</summary><ul>${items.map((i) => `<li><code>${escapeHtml(i)}</code></li>`).join("")}</ul></details>` : ""
+    items.length
+      ? `<details><summary>${escapeHtml(label)} (${items.length})</summary><ul>${items.map((i) => `<li><code>${escapeHtml(i)}</code></li>`).join("")}</ul></details>`
+      : ""
   const untraced = c.filesUntraced.length
     ? `<details open><summary>Not traced (${c.filesUntraced.length})</summary><ul>${c.filesUntraced.map((u) => `<li><code>${escapeHtml(u.path)}</code> — ${escapeHtml(u.reason)}</li>`).join("")}</ul></details>`
     : ""
-  const notes = c.notes?.length ? `<details><summary>Notes (${c.notes.length})</summary><ul>${c.notes.map((x) => `<li>${renderInline(x)}</li>`).join("")}</ul></details>` : ""
+  const notes = c.notes?.length
+    ? `<details><summary>Notes (${c.notes.length})</summary><ul>${c.notes.map((x) => `<li>${renderInline(x)}</li>`).join("")}</ul></details>`
+    : ""
   const sources = r.sources.length
     ? `<details><summary>Context given to the model (${r.sources.length})</summary><ul>${r.sources.map((s) => `<li><span class="tag">${escapeHtml(s.kind)}</span> <code>${escapeHtml(s.source)}</code></li>`).join("")}</ul></details>`
     : ""
@@ -422,7 +469,8 @@ export function renderBody(report: Report): string {
     renderReview(report, ctx),
   ]
   const stepper = STEP_TITLES.map(
-    (t, i) => `<button type="button" data-step-tab="${i + 1}"${lensAttr(STEP_LENSES[i])}><span class="n">Step ${i + 1}</span><span class="t">${escapeHtml(t)}</span></button>`,
+    (t, i) =>
+      `<button type="button" data-step-tab="${i + 1}"${lensAttr(STEP_LENSES[i])}><span class="n">Step ${i + 1}</span><span class="t">${escapeHtml(t)}</span></button>`,
   ).join("")
   const sections = STEP_TITLES.map(
     (t, i) => `<section class="step" data-step="${i + 1}" id="step-${i + 1}"${lensAttr(STEP_LENSES[i])}${i === 0 ? "" : " hidden"}>

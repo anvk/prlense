@@ -44,9 +44,11 @@ export function showReport(htmlPath: string, open: boolean): void {
 
 function openInBrowser(filePath: string): boolean {
   const cmd =
-    process.platform === "darwin" ? ["open", [filePath]] :
-    process.platform === "win32" ? ["cmd", ["/c", "start", "", filePath]] :
-    ["xdg-open", [filePath]]
+    process.platform === "darwin"
+      ? ["open", [filePath]]
+      : process.platform === "win32"
+        ? ["cmd", ["/c", "start", "", filePath]]
+        : ["xdg-open", [filePath]]
   try {
     const child = spawn(cmd[0] as string, cmd[1] as string[], { stdio: "ignore", detached: true })
     child.on("error", () => undefined)

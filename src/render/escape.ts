@@ -28,8 +28,5 @@ const LS = String.fromCharCode(0x2028)
 const PS = String.fromCharCode(0x2029)
 
 export function jsonForScriptTag(value: unknown): string {
-  return JSON.stringify(value)
-    .replaceAll("<", "\\u003c")
-    .replaceAll(LS, "\\u2028")
-    .replaceAll(PS, "\\u2029")
+  return JSON.stringify(value).replaceAll("<", "\\u003c").replaceAll(LS, "\\u2028").replaceAll(PS, "\\u2029")
 }

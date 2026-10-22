@@ -7,14 +7,67 @@ import { applySemanticChecks, parseAgentOutput, ValidationError } from "./valida
 
 const good = {
   why: { paragraphs: ["a"], references: [{ label: "ABC-1", kind: "ticket" }] },
-  what: { lead: "b", sections: [{ kind: "ui", title: "UI", summary: "s", points: ["h"] }, { kind: "architecture", title: "A", summary: "", points: [] }] },
-  model: { summary: "none", changes: [{ group: "storage", kind: "table", name: "t1", change: "added", description: "d", locations: [], attention: true, risk: "irreversible" }] },
-  functions: { groups: [{ area: "go", items: [{ name: "F", kind: "function", change: "modified", summary: "s", location: { path: "go/a.go", line: 3 }, detailIds: ["x9", "x2"] }] }] },
-  details: { changes: [{ id: "x9", title: "t", files: [{ path: "go/a.go", line: 3 }, { path: "go/missing.go", line: 1 }], after: "after", explanation: ["e"] }] },
+  what: {
+    lead: "b",
+    sections: [
+      { kind: "ui", title: "UI", summary: "s", points: ["h"] },
+      { kind: "architecture", title: "A", summary: "", points: [] },
+    ],
+  },
+  model: {
+    summary: "none",
+    changes: [
+      {
+        group: "storage",
+        kind: "table",
+        name: "t1",
+        change: "added",
+        description: "d",
+        locations: [],
+        attention: true,
+        risk: "irreversible",
+      },
+    ],
+  },
+  functions: {
+    groups: [
+      {
+        area: "go",
+        items: [
+          {
+            name: "F",
+            kind: "function",
+            change: "modified",
+            summary: "s",
+            location: { path: "go/a.go", line: 3 },
+            detailIds: ["x9", "x2"],
+          },
+        ],
+      },
+    ],
+  },
+  details: {
+    changes: [
+      {
+        id: "x9",
+        title: "t",
+        files: [
+          { path: "go/a.go", line: 3 },
+          { path: "go/missing.go", line: 1 },
+        ],
+        after: "after",
+        explanation: ["e"],
+      },
+    ],
+  },
   review: {
     risks: [{ kind: "deploy", title: "flag", consequence: "off by default", source: { detailId: "x9" } }],
     questions: [{ question: "why?", context: "ctx", source: { modelChange: "nope" } }],
-    glossary: [{ term: "Tenant", meaning: "b" }, { term: "tenant", meaning: "dup" }, { term: "Agent", meaning: "a" }],
+    glossary: [
+      { term: "Tenant", meaning: "b" },
+      { term: "tenant", meaning: "dup" },
+      { term: "Agent", meaning: "a" },
+    ],
   },
   coverage: { filesTraced: ["go/a.go"], filesSkippedGenerated: [], filesSkippedTests: [], filesUntraced: [] },
 }
@@ -43,10 +96,16 @@ test("applySemanticChecks renumbers ids, remaps references and unlinks unknown p
   assert.ok(notes.some((n) => n.includes("go/missing.go")))
   assert.ok(notes.some((n) => n.includes("Dropped unknown detail references")))
   // Empty sections are dropped and the rest are put in canonical order.
-  assert.deepEqual(output.what.sections.map((s) => s.kind), ["ui"])
+  assert.deepEqual(
+    output.what.sections.map((s) => s.kind),
+    ["ui"],
+  )
   // Review: detail ids remapped, unknown model change dropped, flagged step-3 change rolled up, glossary deduped and sorted.
   assert.equal(output.review.risks[0].source?.detailId, "d1")
   assert.equal(output.review.questions[0].source, undefined)
   assert.ok(output.review.risks.some((r) => r.source?.modelChange === "t1" && r.consequence === "irreversible"))
-  assert.deepEqual(output.review.glossary.map((g) => g.term), ["Agent", "Tenant"])
+  assert.deepEqual(
+    output.review.glossary.map((g) => g.term),
+    ["Agent", "Tenant"],
+  )
 })

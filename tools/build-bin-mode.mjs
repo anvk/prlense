@@ -2,23 +2,23 @@
 // during `npm install`/`npm link`, so a normal install is fine — but prlense's self-update
 // rebuilds dist without npm, and the swapped-in file would land unexecutable, leaving
 // `prlense` as "permission denied" and no working prlense to fix it with.
-import fs from "node:fs";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
+import fs from "node:fs"
+import path from "node:path"
+import { fileURLToPath } from "node:url"
 
-const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const outDir = process.env.PRLENSE_BUILD_OUTDIR || path.join(root, "dist");
-const pkg = JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8"));
-const bins = typeof pkg.bin === "string" ? { [pkg.name]: pkg.bin } : (pkg.bin ?? {});
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..")
+const outDir = process.env.PRLENSE_BUILD_OUTDIR || path.join(root, "dist")
+const pkg = JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8"))
+const bins = typeof pkg.bin === "string" ? { [pkg.name]: pkg.bin } : (pkg.bin ?? {})
 
 for (const target of Object.values(bins)) {
   // "./dist/bin/prlense.js" is relative to the package; the build may be going somewhere else.
-  const relative = path.relative("dist", target.replace(/^\.\//, ""));
-  const file = path.join(outDir, relative);
+  const relative = path.relative("dist", target.replace(/^\.\//, ""))
+  const file = path.join(outDir, relative)
   try {
-    fs.chmodSync(file, 0o755);
+    fs.chmodSync(file, 0o755)
   } catch (error) {
-    console.error(`bin mode: could not make ${file} executable (${error.message})`);
-    process.exit(1);
+    console.error(`bin mode: could not make ${file} executable (${error.message})`)
+    process.exit(1)
   }
 }

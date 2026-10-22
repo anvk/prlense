@@ -19,11 +19,7 @@ function formatCommand(command: string, args: string[]): string {
   return `${command} ${args.join(" ")}`.trim()
 }
 
-export function run(
-  command: string,
-  args: string[],
-  options: SpawnSyncOptionsWithBufferEncoding = {},
-): RunResult {
+export function run(command: string, args: string[], options: SpawnSyncOptionsWithBufferEncoding = {}): RunResult {
   const result = spawnSync(command, args, {
     encoding: "utf8",
     stdio: "pipe",
@@ -51,11 +47,7 @@ export function runRaw(command: string, args: string[], options: SpawnSyncOption
 }
 
 // Like run() but never throws; callers inspect status.
-export function tryRun(
-  command: string,
-  args: string[],
-  options: SpawnSyncOptionsWithBufferEncoding = {},
-): RunStatus {
+export function tryRun(command: string, args: string[], options: SpawnSyncOptionsWithBufferEncoding = {}): RunStatus {
   const result = spawnSync(command, args, {
     encoding: "utf8",
     stdio: "pipe",

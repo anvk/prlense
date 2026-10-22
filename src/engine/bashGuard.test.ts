@@ -73,7 +73,11 @@ test("commands that write or run programs through an allowed tool are denied", (
 
 test("parseCommand splits programs and keeps quoted text whole", () => {
   assert.deepEqual(parseCommand(`git log --format='%h %s' | head -3 && echo "a b"`), {
-    segments: [["git", "log", "--format=%h %s"], ["head", "-3"], ["echo", "a b"]],
+    segments: [
+      ["git", "log", "--format=%h %s"],
+      ["head", "-3"],
+      ["echo", "a b"],
+    ],
   })
   assert.deepEqual(parseCommand("git log 2>&1 | head"), { segments: [["git", "log"], ["head"]] })
   assert.deepEqual(parseCommand("rg 'a(b)' src"), { segments: [["rg", "a(b)", "src"]] })

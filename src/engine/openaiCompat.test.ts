@@ -32,7 +32,9 @@ async function fakeApi(replies: object[]): Promise<{ baseUrl: string; requests: 
 
 const say = (content: string) => ({ choices: [{ message: { content } }], usage: { prompt_tokens: 10, completion_tokens: 5 } })
 const callTool = (name: string, args: object) => ({
-  choices: [{ message: { content: null, tool_calls: [{ id: "call_1", type: "function", function: { name, arguments: JSON.stringify(args) } }] } }],
+  choices: [
+    { message: { content: null, tool_calls: [{ id: "call_1", type: "function", function: { name, arguments: JSON.stringify(args) } }] } },
+  ],
   usage: { prompt_tokens: 10, completion_tokens: 5 },
 })
 
@@ -54,8 +56,8 @@ const input = (cwd: string, checkOutput?: (v: unknown) => string | null) => ({
 test("the model reads files through the tools, and a rejected answer is sent back to be fixed", async () => {
   const api = await fakeApi([
     callTool("read_file", { path: "README.md" }),
-    say("Here it is: {\"wrong\": true}"),
-    say("```json\n{\"why\": \"because\"}\n```"),
+    say('Here it is: {"wrong": true}'),
+    say('```json\n{"why": "because"}\n```'),
   ])
   process.env.PRLENSE_TEST_KEY = "secret"
   const engine = new OpenAiCompatEngine({ baseUrl: api.baseUrl, model: "any-model", apiKeyEnv: "PRLENSE_TEST_KEY" })
@@ -68,7 +70,10 @@ test("the model reads files through the tools, and a rejected answer is sent bac
 
   assert.equal(result.status, "ok")
   assert.deepEqual(result.output, { why: "because" })
-  assert.deepEqual({ turns: result.turns, inputTokens: result.inputTokens, outputTokens: result.outputTokens }, { turns: 3, inputTokens: 30, outputTokens: 15 })
+  assert.deepEqual(
+    { turns: result.turns, inputTokens: result.inputTokens, outputTokens: result.outputTokens },
+    { turns: 3, inputTokens: 30, outputTokens: 15 },
+  )
   assert.deepEqual(progress, ["read_file README.md"])
 
   const [first, second, third] = api.requests

@@ -40,9 +40,20 @@ export interface ExplainOptions extends EngineFlags {
 
 function buildPrHeader(pr: PrMeta, wt: PrWorktree): Report["pr"] {
   return {
-    number: pr.number, slug: pr.slug, url: pr.url, title: pr.title, author: pr.author, state: pr.state,
-    isDraft: pr.isDraft, baseRefName: pr.baseRefName, headRefName: pr.headRefName, baseSha: wt.baseSha,
-    headSha: wt.headSha, additions: pr.additions, deletions: pr.deletions, changedFiles: pr.changedFiles,
+    number: pr.number,
+    slug: pr.slug,
+    url: pr.url,
+    title: pr.title,
+    author: pr.author,
+    state: pr.state,
+    isDraft: pr.isDraft,
+    baseRefName: pr.baseRefName,
+    headRefName: pr.headRefName,
+    baseSha: wt.baseSha,
+    headSha: wt.headSha,
+    additions: pr.additions,
+    deletions: pr.deletions,
+    changedFiles: pr.changedFiles,
     headRepoSlug: pr.headRepoSlug,
   }
 }
@@ -98,7 +109,9 @@ export async function runExplainCommand(input: string, opts: ExplainOptions): Pr
 
   log.step(`Reading PR #${ref.number} from ${remote.slug} (remote ${remote.name})`)
   const pr = resolvePr(remote, ref)
-  log.info(`${pr.title} — ${pr.state.toLowerCase()}${pr.isDraft ? ", draft" : ""}, ${pr.changedFiles} files, +${pr.additions}/-${pr.deletions}`)
+  log.info(
+    `${pr.title} — ${pr.state.toLowerCase()}${pr.isDraft ? ", draft" : ""}, ${pr.changedFiles} files, +${pr.additions}/-${pr.deletions}`,
+  )
 
   const reportsDir = resolveReportsDir(user, opts.out)
 
@@ -121,7 +134,9 @@ export async function runExplainCommand(input: string, opts: ExplainOptions): Pr
       { repoRoot, worktreePath: wt.path, pr, changedFiles, ticketRefs, options: runOptions },
       runOptions.contextMaxBytes,
     )
-    log.info(`${context.docs.length} context docs, ${Math.round(context.totalBytes / 1024)} KB${context.truncated.length ? `, truncated: ${context.truncated.join(", ")}` : ""}`)
+    log.info(
+      `${context.docs.length} context docs, ${Math.round(context.totalBytes / 1024)} KB${context.truncated.length ? `, truncated: ${context.truncated.join(", ")}` : ""}`,
+    )
 
     const systemPrompt = buildSystemPrompt(engine.tools)
     const userPrompt = buildUserPrompt({ pr, worktree: wt, changedFiles, ticketRefs, context })
@@ -184,4 +199,3 @@ export async function runExplainCommand(input: string, opts: ExplainOptions): Pr
   const { htmlPath } = writeReportFiles(reportsDir, report, opts.timestamp)
   showReport(htmlPath, opts.open)
 }
-

@@ -46,8 +46,7 @@ export const CLAUDE_CLI: EngineKind<ClaudeCliConfig> = {
       effort: (effort as ClaudeEffort | undefined) ?? CLAUDE_DEFAULT_EFFORT,
     }
   },
-  create: (config) =>
-    new ClaudeCliEngine({ model: config.model ?? CLAUDE_DEFAULT_MODEL, effort: config.effort ?? CLAUDE_DEFAULT_EFFORT }),
+  create: (config) => new ClaudeCliEngine({ model: config.model ?? CLAUDE_DEFAULT_MODEL, effort: config.effort ?? CLAUDE_DEFAULT_EFFORT }),
 }
 
 // The script node is running (the npm bin is a symlink, so it is resolved), which is what
@@ -108,7 +107,9 @@ export class ClaudeCliEngine implements Engine {
     try {
       const parsed = JSON.parse(auth.stdout) as { loggedIn?: boolean; authMethod?: string; subscriptionType?: string; email?: string }
       if (!parsed.loggedIn) return { ok: false, details: [...details, "not logged in; run: claude login"] }
-      details.push(`logged in as ${parsed.email ?? "?"} via ${parsed.authMethod ?? "?"}${parsed.subscriptionType ? ` (${parsed.subscriptionType})` : ""}`)
+      details.push(
+        `logged in as ${parsed.email ?? "?"} via ${parsed.authMethod ?? "?"}${parsed.subscriptionType ? ` (${parsed.subscriptionType})` : ""}`,
+      )
     } catch {
       details.push("logged in (could not parse auth status)")
     }
@@ -122,18 +123,37 @@ export class ClaudeCliEngine implements Engine {
     fs.writeFileSync(settingsFile, hooksSettings(this.opts.cliScriptPath ?? entryScript()))
 
     const args = [
-      "-p", input.userPrompt,
-      "--append-system-prompt", input.systemPrompt,
-      "--json-schema", JSON.stringify(input.outputSchema),
-      "--output-format", input.verbose ? "stream-json" : "json",
-      "--model", this.model,
-      "--effort", this.opts.effort,
-      "--permission-mode", "dontAsk",
-      "--allowedTools", "Read", "Glob", "Grep", "Bash",
-      "--disallowedTools", "Write", "Edit", "NotebookEdit", "WebFetch", "WebSearch", "Task",
-      "--setting-sources", "",
+      "-p",
+      input.userPrompt,
+      "--append-system-prompt",
+      input.systemPrompt,
+      "--json-schema",
+      JSON.stringify(input.outputSchema),
+      "--output-format",
+      input.verbose ? "stream-json" : "json",
+      "--model",
+      this.model,
+      "--effort",
+      this.opts.effort,
+      "--permission-mode",
+      "dontAsk",
+      "--allowedTools",
+      "Read",
+      "Glob",
+      "Grep",
+      "Bash",
+      "--disallowedTools",
+      "Write",
+      "Edit",
+      "NotebookEdit",
+      "WebFetch",
+      "WebSearch",
+      "Task",
+      "--setting-sources",
+      "",
       "--strict-mcp-config",
-      "--settings", settingsFile,
+      "--settings",
+      settingsFile,
     ]
     if (input.verbose) args.push("--verbose")
 
@@ -207,26 +227,53 @@ export class ClaudeCliEngine implements Engine {
           }
         }
         const durationMs = Date.now() - started
-        const cleanStderr = stderr.split("\n").filter((l) => !l.includes("no stdin data received")).join("\n").trim()
+        const cleanStderr = stderr
+          .split("\n")
+          .filter((l) => !l.includes("no stdin data received"))
+          .join("\n")
+          .trim()
         if (!finalJson) {
           finish({
-            ...base, status: "error", durationMs, rawText: stdout,
+            ...base,
+            status: "error",
+            durationMs,
+            rawText: stdout,
             message: `claude exited with code ${code} and no result JSON.${cleanStderr ? "\n" + cleanStderr : ""}`,
           })
           return
         }
         const usage = {
-          inputTokens: (finalJson.usage?.input_tokens ?? 0) + (finalJson.usage?.cache_read_input_tokens ?? 0) + (finalJson.usage?.cache_creation_input_tokens ?? 0),
+          inputTokens:
+            (finalJson.usage?.input_tokens ?? 0) +
+            (finalJson.usage?.cache_read_input_tokens ?? 0) +
+            (finalJson.usage?.cache_creation_input_tokens ?? 0),
           outputTokens: finalJson.usage?.output_tokens,
           turns: finalJson.num_turns,
         }
         if (finalJson.subtype === "success" && finalJson.structured_output !== undefined) {
           finish({ ...base, ...usage, status: "ok", durationMs, output: finalJson.structured_output })
-        } else if (finalJson.subtype === "error_max_structured_output_retries" || (finalJson.subtype === "success" && finalJson.structured_output === undefined)) {
-          finish({ ...base, ...usage, status: "schema_failed", durationMs, rawText: finalJson.result, message: "the model did not produce output matching the schema" })
+        } else if (
+          finalJson.subtype === "error_max_structured_output_retries" ||
+          (finalJson.subtype === "success" && finalJson.structured_output === undefined)
+        ) {
+          finish({
+            ...base,
+            ...usage,
+            status: "schema_failed",
+            durationMs,
+            rawText: finalJson.result,
+            message: "the model did not produce output matching the schema",
+          })
         } else {
           const errs = finalJson.errors?.join("; ")
-          finish({ ...base, ...usage, status: "error", durationMs, rawText: finalJson.result, message: `claude ended with ${finalJson.subtype ?? "unknown"}${errs ? ": " + errs : ""}${cleanStderr ? "\n" + cleanStderr : ""}` })
+          finish({
+            ...base,
+            ...usage,
+            status: "error",
+            durationMs,
+            rawText: finalJson.result,
+            message: `claude ended with ${finalJson.subtype ?? "unknown"}${errs ? ": " + errs : ""}${cleanStderr ? "\n" + cleanStderr : ""}`,
+          })
         }
       })
     })

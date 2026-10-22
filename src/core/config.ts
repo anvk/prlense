@@ -133,7 +133,7 @@ function readJsonIfPresent(filePath: string): unknown | undefined {
   try {
     return JSON.parse(fs.readFileSync(filePath, "utf8"))
   } catch (error) {
-    throw new Error(`${filePath}: invalid JSON (${errorMessage(error)})`)
+    throw new Error(`${filePath}: invalid JSON (${errorMessage(error)})`, { cause: error })
   }
 }
 
@@ -159,7 +159,12 @@ export function resolveEngineConfig(user: UserConfig, flags: EngineFlags): Engin
     else if (kind?.bare) cfg = kind.bare
     else if (kind) throw new Error(`--engine ${flags.engine} needs ${kind.needs ?? "a preset in ~/.prlense/config.json"}`)
     else {
-      const known = [...Object.entries(ENGINE_KINDS).filter(([, k]) => k.bare).map(([name]) => name), ...Object.keys(user.engines)]
+      const known = [
+        ...Object.entries(ENGINE_KINDS)
+          .filter(([, k]) => k.bare)
+          .map(([name]) => name),
+        ...Object.keys(user.engines),
+      ]
       throw new Error(`Unknown engine "${flags.engine}". Known: ${known.join(", ")}`)
     }
   }

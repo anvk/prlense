@@ -3,7 +3,14 @@ import assert from "node:assert/strict"
 import { collectContext } from "./collect.js"
 import type { ContextDoc, ContextRequest } from "./provider.js"
 
-const doc = (source: string, content: string, priority = 0): ContextDoc => ({ id: source, kind: "doc", title: source, source, content, priority })
+const doc = (source: string, content: string, priority = 0): ContextDoc => ({
+  id: source,
+  kind: "doc",
+  title: source,
+  source,
+  content,
+  priority,
+})
 const provider = (docs: ContextDoc[]) => ({ name: "fixed", collect: async () => docs })
 
 test("the context budget is kept in bytes, cutting cleanly through multi-byte text", async () => {

@@ -164,7 +164,10 @@ function runCommand(root: string, command: string): string {
     maxBuffer: 16 * 1024 * 1024,
   })
   if (result.error) throw new Error(`could not run the command: ${result.error.message}`)
-  const output = [result.stdout, result.stderr].filter((s) => s && s.trim()).join("\n").trimEnd()
+  const output = [result.stdout, result.stderr]
+    .filter((s) => s && s.trim())
+    .join("\n")
+    .trimEnd()
   const status = result.status === 0 ? "" : `\n(exit status ${result.status ?? "killed after timeout"})`
   return cap((output || "(no output)") + status)
 }
